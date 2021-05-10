@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 
 int menuMain();
 void menuCliente(void);
 void menuConta(void);
+void addCliente(void);
 
-int main(void)
-{
     struct Conta {
         char agencia[5];
         char conta[11];
@@ -19,8 +19,15 @@ int main(void)
         int id;
         char nome[30];
         char cpf[15];   // CNPJ pode ter 14 digitos
-        struct Conta contaCliente;
+        char phone[15];
+        char addr[70];
+        struct Conta contaCl;
     };
+int main(void)
+{
+
+    struct Cliente clienteLi[10];
+    memset(clienteLi, 0, sizeof clienteLi);
 
     int test = menuMain();
     printf("%c\n", test);
@@ -92,8 +99,12 @@ void menuCliente(void)
              (input != 's'));
 
     switch (input) {
+        case 'c':
+            addCliente();
+            break;
         case 's':
             exit(0);
+            break;
         default :
             break;
     }
@@ -137,3 +148,71 @@ void menuConta(void)
     }
 }
 
+void addCliente(void)
+{
+    int id;
+    char nome[30];
+    char cpf[15];
+    char phone[15];
+    char addr[70];
+
+    printf("Informe o código do cliente: ");
+    // Read scanf until it matches one int. Otherwise flush buffer and loop
+    while (scanf("%d", &id) != 1) {
+        printf("Entrada inválida. Digite um número para o ID do cliente.\n");
+        while (getchar() != '\n');
+    }
+    while (getchar() != '\n');
+
+    // Check for newline in buffer. If it is there, remove it.
+    // Otherwise, flush the buffer to remove it and anything else from there.
+    printf("Informe o nome do cliente. Max 29 caracteres: ");
+    fgets(nome, 30, stdin);
+    size_t length = strlen(nome) - 1;
+    if (nome[length] == '\n')
+        nome[length] = 0;
+    else
+        while (getchar() != '\n');
+
+    // TODO: Add check to validate input as number
+    printf("Informe o CPF ou CNPJ do cliente: ");
+    fgets(cpf, 15, stdin);
+    length = strlen(cpf) - 1;
+    if (cpf[length] == '\n')
+        cpf[length] = 0;
+    else
+        while (getchar() != '\n');
+    
+    // TODO: Add check to validate input as number
+    printf("Informe o telefone do cliente: ");
+    fgets(phone, 15, stdin);
+    length = strlen(phone) - 1;
+    if (phone[length] == '\n')
+        phone[length] = 0;
+    else
+        while (getchar() != '\n');
+
+    printf("Informe o endereço do cliente. Max 70 caracteres: ");
+    fgets(addr, 15, stdin);
+    length = strlen(addr) - 1;
+    if (addr[length] == '\n')
+        addr[length] = 0;
+    else
+        while (getchar() != '\n');
+
+    struct Cliente clienteLi = {.id = id,};
+    strcpy(clienteLi.nome, nome);
+    strcpy(clienteLi.cpf, cpf);
+    strcpy(clienteLi.phone, phone);
+    strcpy(clienteLi.addr, addr);
+
+    printf("\nCliente cadastrado com sucesso.\n"
+           "Código:   %d\n"
+           "Nome:     %s\n"
+           "CPF/CNPJ: %s\n"
+           "Telefone: %s\n"
+           "Endereço: %s\n",
+           clienteLi.id, clienteLi.nome, clienteLi.cpf,
+           clienteLi.phone, clienteLi.addr);
+
+}
