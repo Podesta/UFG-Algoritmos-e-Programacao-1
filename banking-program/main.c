@@ -8,6 +8,7 @@ void menuCliente(FILE *db);
 void menuConta(void);
 void addCliente(FILE *db);
 void listCliente(FILE *db);
+bool checkCliente(int id, char *cpf, FILE *db);
 
 struct Conta {
     char agencia[5];
@@ -218,32 +219,54 @@ void addCliente(FILE *db)
     else
         while (getchar() != '\n');
 
-    struct Cliente clienteLi = {.id = id,};
-    strcpy(clienteLi.nome, nome);
-    strcpy(clienteLi.cpf, cpf);
-    strcpy(clienteLi.phone, phone);
-    strcpy(clienteLi.addr, addr);
+    if (checkCliente(id, cpf, db)) {
+            struct Cliente clienteLi;
+            clienteLi.id = id;
+            strcpy(clienteLi.nome, nome);
+            strcpy(clienteLi.cpf, cpf);
+            strcpy(clienteLi.phone, phone);
+            strcpy(clienteLi.addr, addr);
 
-    printf("\nCliente cadastrado com sucesso.\n"
-           "Código:   %d\n"
-           "Nome:     %s\n"
-           "CPF/CNPJ: %s\n"
-           "Telefone: %s\n"
-           "Endereço: %s\n",
-           clienteLi.id, clienteLi.nome, clienteLi.cpf,
-           clienteLi.phone, clienteLi.addr);
+            printf("\nCliente cadastrado com sucesso.\n"
+                    "Código:   %d\n"
+                    "Nome:     %s\n"
+                    "CPF/CNPJ: %s\n"
+                    "Telefone: %s\n"
+                    "Endereço: %s\n",
+                    clienteLi.id, clienteLi.nome, clienteLi.cpf,
+                    clienteLi.phone, clienteLi.addr);
 
-    fwrite(&clienteLi, sizeof (struct Cliente), 1, db);
+            fwrite(&clienteLi, sizeof(struct Cliente), 1, db);
+    } else {
+        printf("\nCliente já cadastrado no banco de dados.\n"
+               "Cliente deve ter Código e CPF/CNPJ únicos.\n");
+    }
 }
+
+// Make sure there is no repeated ID or CPF/CNPJ
+// Returns true if not repeated and false otherwise.
+bool checkCliente(int id, char *cpf, FILE *db)
+{
+    struct Cliente clienteLi;
+    rewind(db);
+    while(fread(&clienteLi, sizeof (struct Cliente), 1, db)) {
+        if (clienteLi.id == id)
+            return false;
+        else if (strcmp(clienteLi.cpf, cpf) == 0)
+            return false;
+    }
+
+    return true;
+}
+
 
 void listCliente(FILE *db)
 {
     struct Cliente clienteLi;
     rewind(db);
-    size_t qtyCliente = fread(&clienteLi, sizeof (struct Cliente), 1, db);
 
     printf("\n============= Lista de Clientes ============\n");
-    if (qtyCliente == 0) {
+    if (fread(&clienteLi, sizeof (struct Cliente), 1, db) != 1) {
         printf("Nenhum cliente cadastrado.\n");
     } else {
         rewind(db);
