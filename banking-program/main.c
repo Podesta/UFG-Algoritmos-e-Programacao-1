@@ -3,38 +3,53 @@
 #include <stdbool.h>
 #include <string.h>
 
-
 int menuMain();
-void menuCliente(void);
+void menuCliente(FILE *db);
 void menuConta(void);
-void addCliente(void);
+void addCliente(FILE *db);
+void listCliente(FILE *db);
 
-    struct Conta {
-        char agencia[5];
-        char conta[11];
-        int saldo;
-    };
+struct Conta {
+    char agencia[5];
+    char conta[11];
+    int saldo;
+};
 
-    struct Cliente {
-        int id;
-        char nome[30];
-        char cpf[15];   // CNPJ pode ter 14 digitos
-        char phone[15];
-        char addr[70];
-        struct Conta contaCl;
-    };
-int main(void)
+struct Cliente {
+    int id;
+    char nome[30];
+    char cpf[15];   // CNPJ pode ter 14 digitos
+    char phone[15];
+    char addr[70];
+    struct Conta contaCl;
+};
+
+int main(int argc, char *argv[])
 {
 
     struct Cliente clienteLi[10];
     memset(clienteLi, 0, sizeof clienteLi);
 
-    int test = menuMain();
+    // User must provide one and only one database at runtime
+    if (argc < 2 || argc > 2) {
+        printf("Por favor, informe um, e somente um, banco de dados a "
+               "ser utilizado ao iniciar o programa.\n");
+        return 1;
+    }
+    
+    FILE *database;
+    database = fopen(argv[1], "a+b");
+
+    int test = menuMain(database);
     printf("%c\n", test);
+
+    fclose(database);
+
+
     return 0;
 }
 
-int menuMain()
+int menuMain(FILE *db)
 {
     int input;
 
@@ -58,7 +73,7 @@ int menuMain()
 
         switch (input) {
             case 'c':
-                menuCliente();
+                menuCliente(db);
                 break;
             case 't':
                 menuConta();
@@ -71,7 +86,7 @@ int menuMain()
     }
 }
 
-void menuCliente(void)
+void menuCliente(FILE *db)
 {
     int input;
 
@@ -100,7 +115,10 @@ void menuCliente(void)
 
     switch (input) {
         case 'c':
-            addCliente();
+            addCliente(db);
+            break;
+        case 'l':
+            listCliente(db);
             break;
         case 's':
             exit(0);
@@ -148,7 +166,7 @@ void menuConta(void)
     }
 }
 
-void addCliente(void)
+void addCliente(FILE *db)
 {
     int id;
     char nome[30];
@@ -215,4 +233,27 @@ void addCliente(void)
            clienteLi.id, clienteLi.nome, clienteLi.cpf,
            clienteLi.phone, clienteLi.addr);
 
+    fwrite(&clienteLi, sizeof (struct Cliente), 1, db);
+}
+
+void listCliente(FILE *db)
+{
+    struct Cliente clienteLi;
+    rewind(db);
+    size_t qtyCliente = fread(&clienteLi, sizeof (struct Cliente), 1, db);
+
+    printf("\n============= Lista de Clientes ============\n");
+    if (qtyCliente == 0) {
+        printf("Nenhum cliente cadastrado.\n");
+    } else {
+        rewind(db);
+        while(fread(&clienteLi, sizeof (struct Cliente), 1, db))
+            printf("Código:   %d\n"
+                    "Nome:     %s\n"
+                    "CPF/CNPJ: %s\n"
+                    "Telefone: %s\n"
+                    "Endereço: %s\n\n",
+                    clienteLi.id, clienteLi.nome, clienteLi.cpf,
+                    clienteLi.phone, clienteLi.addr);
+    }
 }
