@@ -5,10 +5,12 @@
 
 int menuMain();
 void menuCliente(FILE *db);
-void menuConta(void);
+void menuConta(FILE *db);
 void addCliente(FILE *db);
 void listCliente(FILE *db);
 bool checkCliente(int id, char *cpf, FILE *db);
+int cleanExit(FILE *db, int a);
+int stringComp(const void *s1, const void *s2);
 
 struct Conta {
     char agencia[5];
@@ -21,15 +23,16 @@ struct Cliente {
     char nome[30];
     char cpf[15];   // CNPJ pode ter 14 digitos
     char phone[15];
-    char addr[70];
+    char addr[90];
     struct Conta contaCl;
 };
+
 
 int main(int argc, char *argv[])
 {
 
     struct Cliente clienteLi[10];
-    memset(clienteLi, 0, sizeof clienteLi);
+    memset(clienteLi, 0, sizeof(clienteLi));
 
     // User must provide one and only one database at runtime
     if (argc < 2 || argc > 2) {
@@ -39,16 +42,35 @@ int main(int argc, char *argv[])
     }
     
     FILE *database;
-    database = fopen(argv[1], "a+b");
+    database = fopen(argv[1], "r+b");
 
     int test = menuMain(database);
     printf("%c\n", test);
 
     fclose(database);
 
-
     return 0;
 }
+
+
+// Function to compare strings. To with qsort for alphabetical sorting.
+// TODO: Fully understand how the compare function works. Dereference value.
+int stringComp(const void *s1, const void *s2)
+{
+    return strcmp(((struct Cliente *)s1) -> nome,
+                  ((struct Cliente *)s2) -> nome);
+}
+
+
+// Close database before exit. Exit already performs close,
+// but step is required by instructors.
+int cleanExit(FILE *db, int a)
+{
+    fclose(db);
+    exit(a);
+}
+
+
 
 int menuMain(FILE *db)
 {
@@ -77,15 +99,16 @@ int menuMain(FILE *db)
                 menuCliente(db);
                 break;
             case 't':
-                menuConta();
+                menuConta(db);
                 break;
             case 's':
-                exit(0);
+                cleanExit(db, 0);
                 break;
         }
 
     }
 }
+
 
 void menuCliente(FILE *db)
 {
@@ -122,14 +145,15 @@ void menuCliente(FILE *db)
             listCliente(db);
             break;
         case 's':
-            exit(0);
+            cleanExit(db, 0);
             break;
         default :
             break;
     }
 }
 
-void menuConta(void)
+
+void menuConta(FILE *db)
 {
     int input;
 
@@ -160,12 +184,13 @@ void menuConta(void)
 
     switch (input) {
         case 's':
-            exit(0);
+            cleanExit(db, 0);
             break;
         default:
             break;
     }
 }
+
 
 void addCliente(FILE *db)
 {
@@ -173,7 +198,7 @@ void addCliente(FILE *db)
     char nome[30];
     char cpf[15];
     char phone[15];
-    char addr[70];
+    char addr[90];
 
     printf("Informe o código do cliente: ");
     // Read scanf until it matches one int. Otherwise flush buffer and loop
@@ -212,7 +237,7 @@ void addCliente(FILE *db)
         while (getchar() != '\n');
 
     printf("Informe o endereço do cliente. Max 70 caracteres: ");
-    fgets(addr, 15, stdin);
+    fgets(addr, 90, stdin);
     length = strlen(addr) - 1;
     if (addr[length] == '\n')
         addr[length] = 0;
@@ -236,6 +261,7 @@ void addCliente(FILE *db)
                     clienteLi.id, clienteLi.nome, clienteLi.cpf,
                     clienteLi.phone, clienteLi.addr);
 
+            fseek(db, 0, SEEK_END);
             fwrite(&clienteLi, sizeof(struct Cliente), 1, db);
     } else {
         printf("\nCliente já cadastrado no banco de dados.\n"
@@ -249,7 +275,7 @@ bool checkCliente(int id, char *cpf, FILE *db)
 {
     struct Cliente clienteLi;
     rewind(db);
-    while(fread(&clienteLi, sizeof (struct Cliente), 1, db)) {
+    while(fread(&clienteLi, sizeof(struct Cliente), 1, db)) {
         if (clienteLi.id == id)
             return false;
         else if (strcmp(clienteLi.cpf, cpf) == 0)
@@ -265,18 +291,35 @@ void listCliente(FILE *db)
     struct Cliente clienteLi;
     rewind(db);
 
+    // Get how many elemets are in the struct
+    size_t qtyCliente = 0;
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, db))
+        ++qtyCliente;
+
     printf("\n============= Lista de Clientes ============\n");
-    if (fread(&clienteLi, sizeof (struct Cliente), 1, db) != 1) {
+    if (qtyCliente == 0) {
         printf("Nenhum cliente cadastrado.\n");
-    } else {
-        rewind(db);
-        while(fread(&clienteLi, sizeof (struct Cliente), 1, db))
-            printf("Código:   %d\n"
-                    "Nome:     %s\n"
-                    "CPF/CNPJ: %s\n"
-                    "Telefone: %s\n"
-                    "Endereço: %s\n\n",
-                    clienteLi.id, clienteLi.nome, clienteLi.cpf,
-                    clienteLi.phone, clienteLi.addr);
+        return;
+    }
+
+    // Store all of the structs into an array for use with qsort
+    rewind(db);
+    struct Cliente sortCli[qtyCliente];
+    for (size_t i = 0; i < qtyCliente; ++i)
+        fread(&sortCli[i], sizeof(struct Cliente), 1, db);
+
+    qsort(sortCli, qtyCliente, sizeof(struct Cliente), stringComp);
+
+    // Overwrite new sorted database, and also print it
+    fseek(db, 0, SEEK_SET);
+    for (size_t i = 0; i < qtyCliente; ++i) {
+        fwrite(&sortCli[i], sizeof(struct Cliente), 1, db);
+        printf("Código:   %d\n"
+                "Nome:     %s\n"
+                "CPF/CNPJ: %s\n"
+                "Telefone: %s\n"
+                "Endereço: %s\n\n",
+                sortCli[i].id, sortCli[i].nome, sortCli[i].cpf,
+                sortCli[i].phone, sortCli[i].addr);
     }
 }
