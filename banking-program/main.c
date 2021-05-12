@@ -4,13 +4,14 @@
 #include <string.h>
 
 int menuMain();
-void menuCliente(FILE *db);
+void menuClient(FILE *db);
 void menuConta(FILE *db);
-void addCliente(FILE *db);
-void listCliente(FILE *db);
-bool checkCliente(int id, char *cpf, FILE *db);
+void addClient(FILE *db);
+void listClient(FILE *db);
+bool checkClient(int id, char *cpf, FILE *db);
 int cleanExit(FILE *db, int a);
 int stringComp(const void *s1, const void *s2);
+void searchClient(FILE *db);
 
 struct Conta {
     char agencia[5];
@@ -96,7 +97,7 @@ int menuMain(FILE *db)
 
         switch (input) {
             case 'c':
-                menuCliente(db);
+                menuClient(db);
                 break;
             case 't':
                 menuConta(db);
@@ -110,7 +111,7 @@ int menuMain(FILE *db)
 }
 
 
-void menuCliente(FILE *db)
+void menuClient(FILE *db)
 {
     int input;
 
@@ -139,10 +140,13 @@ void menuCliente(FILE *db)
 
     switch (input) {
         case 'c':
-            addCliente(db);
+            addClient(db);
             break;
         case 'l':
-            listCliente(db);
+            listClient(db);
+            break;
+        case 'b':
+            searchClient(db);
             break;
         case 's':
             cleanExit(db, 0);
@@ -192,7 +196,7 @@ void menuConta(FILE *db)
 }
 
 
-void addCliente(FILE *db)
+void addClient(FILE *db)
 {
     int id;
     char nome[30];
@@ -244,7 +248,7 @@ void addCliente(FILE *db)
     else
         while (getchar() != '\n');
 
-    if (checkCliente(id, cpf, db)) {
+    if (checkClient(id, cpf, db)) {
             struct Cliente clienteLi;
             clienteLi.id = id;
             strcpy(clienteLi.nome, nome);
@@ -271,7 +275,7 @@ void addCliente(FILE *db)
 
 // Make sure there is no repeated ID or CPF/CNPJ
 // Returns true if not repeated and false otherwise.
-bool checkCliente(int id, char *cpf, FILE *db)
+bool checkClient(int id, char *cpf, FILE *db)
 {
     struct Cliente clienteLi;
     rewind(db);
@@ -286,40 +290,109 @@ bool checkCliente(int id, char *cpf, FILE *db)
 }
 
 
-void listCliente(FILE *db)
+void listClient(FILE *db)
 {
     struct Cliente clienteLi;
     rewind(db);
 
     // Get how many elemets are in the struct
-    size_t qtyCliente = 0;
+    size_t qtyClient = 0;
     while (fread(&clienteLi, sizeof(struct Cliente), 1, db))
-        ++qtyCliente;
+        ++qtyClient;
 
     printf("\n============= Lista de Clientes ============\n");
-    if (qtyCliente == 0) {
+    if (qtyClient == 0) {
         printf("Nenhum cliente cadastrado.\n");
         return;
     }
 
     // Store all of the structs into an array for use with qsort
     rewind(db);
-    struct Cliente sortCli[qtyCliente];
-    for (size_t i = 0; i < qtyCliente; ++i)
+    struct Cliente sortCli[qtyClient];
+    for (size_t i = 0; i < qtyClient; ++i)
         fread(&sortCli[i], sizeof(struct Cliente), 1, db);
 
-    qsort(sortCli, qtyCliente, sizeof(struct Cliente), stringComp);
+    qsort(sortCli, qtyClient, sizeof(struct Cliente), stringComp);
 
     // Overwrite new sorted database, and also print it
     fseek(db, 0, SEEK_SET);
-    for (size_t i = 0; i < qtyCliente; ++i) {
+    for (size_t i = 0; i < qtyClient; ++i) {
         fwrite(&sortCli[i], sizeof(struct Cliente), 1, db);
         printf("Código:   %d\n"
-                "Nome:     %s\n"
-                "CPF/CNPJ: %s\n"
-                "Telefone: %s\n"
-                "Endereço: %s\n\n",
+               "Nome:     %s\n"
+               "CPF/CNPJ: %s\n"
+               "Telefone: %s\n"
+               "Endereço: %s\n\n",
                 sortCli[i].id, sortCli[i].nome, sortCli[i].cpf,
                 sortCli[i].phone, sortCli[i].addr);
+    }
+}
+
+
+void searchClient(FILE *db)
+{
+    struct Cliente clienteLi;
+    char type[5];
+    char cpfComp[5] = {"cpf:"};
+    char codComp[5] = {"cod:"};
+    char cpf[15];
+    size_t length;
+    int id;
+
+    printf("/nBuscar Cliente. A busca pode ser feita por CPF/CNPJ ou código,\n"
+           "seguindo o exemplo abaixo:\n"
+           "cpf:<NUMERO DO CPF>\ncod:<NUMERO DO CODIGO>\n");
+    fgets(type, 5, stdin);
+    rewind(db);
+
+    // If fgets got the new line, get rid of it, but no need to clear the buffer
+    // Otherwise, clear the buffer with getchar
+    if (!strcmp(type, cpfComp)) {
+        fgets(cpf, 15, stdin);
+        length = strlen(cpf) - 1;
+        if (cpf[length] == '\n')  
+            cpf[length] = 0;
+        else
+            while (getchar() != '\n');
+
+        while (fread(&clienteLi, sizeof(struct Cliente), 1, db)) {
+            if (strcmp(cpf, clienteLi.cpf) == 0) {
+                printf("\nCliente com CPF/CNPJ encontrado:\n"
+                        "Código:   %d\n"
+                        "Nome:     %s\n"
+                        "CPF/CNPJ: %s\n"
+                        "Telefone: %s\n"
+                        "Endereço: %s\n",
+                        clienteLi.id, clienteLi.nome, clienteLi.cpf,
+                        clienteLi.phone, clienteLi.addr);
+                return;
+            }
+        }
+        printf("\nCPF/CNPJ não encontrado.\n");
+
+    } else if (!strcmp(type, codComp)) {
+        if (scanf("%d", &id) != 1) {
+            printf("\nBusca inválida. O ID do cliente é um número.\n");
+            while (getchar() != '\n');
+            return;
+        }
+        while (getchar() != '\n');
+
+        while (fread(&clienteLi, sizeof(struct Cliente), 1, db)) {
+            if (id == clienteLi.id) {
+                printf("\nCliente com código encontrado:\n"
+                        "Código:   %d\n"
+                        "Nome:     %s\n"
+                        "CPF/CNPJ: %s\n"
+                        "Telefone: %s\n"
+                        "Endereço: %s\n",
+                        clienteLi.id, clienteLi.nome, clienteLi.cpf,
+                        clienteLi.phone, clienteLi.addr);
+                return;
+            }
+        }
+        printf("\nCliente com código não encontrado.\n");
+    } else {
+        printf("\nBusca Inválida! Leia as instruções de busca novamente.\n");
     }
 }
