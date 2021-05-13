@@ -6,12 +6,14 @@
 int menuMain();
 void menuClient(FILE *db);
 void menuConta(FILE *db);
-void addClient(FILE *db);
+void addClient(FILE *db, long position);
 void listClient(FILE *db);
 bool checkClient(int id, char *cpf, FILE *db);
 int cleanExit(FILE *db, int a);
 int stringComp(const void *s1, const void *s2);
-void searchClient(FILE *db);
+long searchClient(FILE *db);
+void zeroClient(FILE *db, long position);
+void removeClient(FILE *db, long position);
 
 struct Conta {
     char agencia[5];
@@ -44,6 +46,12 @@ int main(int argc, char *argv[])
     
     FILE *database;
     database = fopen(argv[1], "r+b");
+
+    if (database == NULL) {
+        printf("Banco de dados inexistente!.\nPor favor, crie o banco de dados "
+               "antes de iniciar o programa.\n");
+        return 1;
+    }
 
     int test = menuMain(database);
     printf("%c\n", test);
@@ -114,6 +122,7 @@ int menuMain(FILE *db)
 void menuClient(FILE *db)
 {
     int input;
+    long position = 0;
 
     printf("\n============ Gerenciar Clientes ============\n"
            "Digite um comando para prosseguir:\n"
@@ -140,7 +149,7 @@ void menuClient(FILE *db)
 
     switch (input) {
         case 'c':
-            addClient(db);
+            addClient(db, position);
             break;
         case 'l':
             listClient(db);
@@ -148,10 +157,22 @@ void menuClient(FILE *db)
         case 'b':
             searchClient(db);
             break;
+        case 'a':
+            position = searchClient(db);
+            if (position != 0) {
+                zeroClient(db, position);
+                addClient(db, position);
+            }
+            break;
+        case 'e':
+            position = searchClient(db);
+            if (position != 0)
+                removeClient(db, position);
+            break;
         case 's':
             cleanExit(db, 0);
             break;
-        default :
+        default:
             break;
     }
 }
@@ -196,7 +217,7 @@ void menuConta(FILE *db)
 }
 
 
-void addClient(FILE *db)
+void addClient(FILE *db, long position)
 {
     int id;
     char nome[30];
@@ -265,7 +286,13 @@ void addClient(FILE *db)
                     clienteLi.id, clienteLi.nome, clienteLi.cpf,
                     clienteLi.phone, clienteLi.addr);
 
-            fseek(db, 0, SEEK_END);
+            // Used when updating
+            if (position == 0)
+                fseek(db, 0, SEEK_END);
+            else
+                fseek(db, ((long)sizeof(struct Cliente) * (position - 1)),
+                                                                    SEEK_SET);
+
             fwrite(&clienteLi, sizeof(struct Cliente), 1, db);
     } else {
         printf("\nCliente já cadastrado no banco de dados.\n"
@@ -297,7 +324,7 @@ void listClient(FILE *db)
 
     // Get how many elemets are in the struct
     size_t qtyClient = 0;
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, db))
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, db) == 1)
         ++qtyClient;
 
     printf("\n============= Lista de Clientes ============\n");
@@ -329,7 +356,11 @@ void listClient(FILE *db)
 }
 
 
-void searchClient(FILE *db)
+// Returns location so function can be reused when updating or removing Client.
+// ftell divided by sizeof. Do not subtract now to prevent function from
+// returning 0. Subtract by sizeof, or 1, if already divided, before use. This 
+// way pointer can go to the beginning of the position that needs to be changed
+long searchClient(FILE *db)
 {
     struct Cliente clienteLi;
     char type[5];
@@ -338,6 +369,7 @@ void searchClient(FILE *db)
     char cpf[15];
     size_t length;
     int id;
+    long position;
 
     printf("/nBuscar Cliente. A busca pode ser feita por CPF/CNPJ ou código,\n"
            "seguindo o exemplo abaixo:\n"
@@ -365,7 +397,8 @@ void searchClient(FILE *db)
                         "Endereço: %s\n",
                         clienteLi.id, clienteLi.nome, clienteLi.cpf,
                         clienteLi.phone, clienteLi.addr);
-                return;
+                position = (ftell(db) / (long int)sizeof(struct Cliente));
+                return position;
             }
         }
         printf("\nCPF/CNPJ não encontrado.\n");
@@ -374,7 +407,7 @@ void searchClient(FILE *db)
         if (scanf("%d", &id) != 1) {
             printf("\nBusca inválida. O ID do cliente é um número.\n");
             while (getchar() != '\n');
-            return;
+            return 0;
         }
         while (getchar() != '\n');
 
@@ -388,11 +421,60 @@ void searchClient(FILE *db)
                         "Endereço: %s\n",
                         clienteLi.id, clienteLi.nome, clienteLi.cpf,
                         clienteLi.phone, clienteLi.addr);
-                return;
+                position = (ftell(db) / (long int)sizeof(struct Cliente));
+                return position;
             }
         }
-        printf("\nCliente com código não encontrado.\n");
+        printf("\nCódigo não encontrado.\n");
     } else {
         printf("\nBusca Inválida! Leia as instruções de busca novamente.\n");
     }
+    return 0;
+}
+
+
+// Zero position on the file, so that when updating it doen't get matched
+// as a repeated cod or cpf/cnpj by checkClient();
+void zeroClient(FILE *db, long position)
+{
+    struct Cliente clienteLi;
+    memset(&clienteLi, 0, sizeof(struct Cliente));
+    fseek(db, ((long)sizeof(struct Cliente) * (position - 1)), SEEK_SET);
+    fwrite(&clienteLi, sizeof(struct Cliente), 1, db);
+}
+
+
+// Load everything into ram, remove the target client, and write again to file
+// and truncate. Another option would be creating a new file, and renaming both
+// but I need to pass argv[] all the way to this function. And third option,
+// currently implemented, is simply reopening the file with the w+b option, and
+// that will truncate the file, and then write, while keeping the FILE stream.
+void removeClient(FILE *db, long position)
+{
+    struct Cliente clienteLi;
+    int qtyClient = 0;
+    --position;
+
+    rewind(db);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, db) == 1)
+        ++qtyClient;
+
+    rewind(db);
+    struct Cliente removeCli[qtyClient];
+    for (long i = 0; i < qtyClient; ++i) {
+        if (i == position) {
+            fseek(db, sizeof(struct Cliente), SEEK_CUR);
+            continue;
+        }
+        fread(&removeCli[i], sizeof(struct Cliente), 1, db);
+    }
+
+    freopen(NULL, "w+b", db);
+    rewind(db);
+    for (long i = 0; i < qtyClient; ++i) {
+        if (i == position)
+            continue;
+        fwrite(&removeCli[i], sizeof(struct Cliente), 1, db);
+    }
+    printf("Cliente removido com sucesso!\n");
 }
