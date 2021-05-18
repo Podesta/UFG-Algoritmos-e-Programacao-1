@@ -3,21 +3,25 @@
 #include <stdbool.h>
 #include <string.h>
 
-int menuMain();
-void menuClient(FILE *dbClient);
-void menuConta(FILE *dbClient);
+#include <ctype.h>
+
+int menuMain(FILE *dbClient, FILE *dbAccount);
+void menuClient(FILE *dbClient, FILE *dbAccount);
+void menuConta(FILE *dbClient, FILE *dbAccount);
 void addClient(FILE *dbClient, long position);
 void listClient(FILE *dbClient);
 bool checkClient(int id, char *cpf, FILE *dbClient);
-int cleanExit(FILE *dbClient, int a);
+int cleanExit(FILE *dbClient, FILE *dbAccount, int a);
 int stringComp(const void *s1, const void *s2);
 int searchClient(FILE *dbClient);
 long positionClient(FILE *dbClient, int id);
 void zeroClient(FILE *dbClient, long position);
 void removeClient(FILE *dbClient, long position);
 
+void addAccount(FILE *dbAccount, int idClient);
+bool checkAccount(char *bankNum, char *accountNum, FILE *dbAccount);
+
 struct Account {
-    int id;
     int idClient;
     char bankNum[5];
     char accountNum[11];
@@ -31,6 +35,91 @@ struct Cliente {
     char phone[15];
     char addr[90];
 };
+
+void addAccount(FILE *dbAccount, int idClient)
+{
+    struct Account accountLi;
+    char bankNum[5];
+    char accountNum[11];
+    size_t length = 0;
+    bool isNumber = false;
+
+    while (!isNumber) {
+        printf("Informe a agência: ");
+        fgets(bankNum, 5, stdin);
+        length = strlen(bankNum);
+        if (bankNum[length-1] == '\n')
+            bankNum[length-1] = 0;
+        else
+            while (getchar() != '\n');
+
+        for (size_t i = 0; i < length - 1; ++i) {
+            if (!isdigit(bankNum[i])) {
+                printf("Agência deve conter apenas números!\n");
+                isNumber = false;
+                break;
+            }
+            isNumber = true;
+        }
+    }
+
+    isNumber = false;
+    while (!isNumber) {
+        printf("Informe o número da conta: ");
+        fgets(accountNum, 11, stdin);
+        length = strlen(accountNum);
+        if (accountNum[length-1] == '\n')
+            accountNum[length-1] = 0;
+        else
+            while (getchar() != '\n');
+
+        for (size_t i = 0; i < length - 1; ++i) {
+            if (!isdigit(accountNum[i])) {
+                printf("Conta deve conter apenas números!\n");
+                isNumber = false;
+                break;
+            }
+            isNumber = true;
+        }
+    }
+
+    if (checkAccount(bankNum, accountNum, dbAccount)) {
+
+        accountLi.idClient = idClient;
+        strcpy(accountLi.bankNum, bankNum);
+        strcpy(accountLi.accountNum, accountNum);
+        accountLi.balance = 0;
+
+        printf("\nConta adicionada com sucesso!\n"
+                "Cliente: %d\n"
+                "Agência: %s\n"
+                "Conta:   %s\n"
+                "Saldo:   %lld\n", accountLi.idClient, accountLi.bankNum,
+                accountLi.accountNum, accountLi.balance);
+
+        fseek(dbAccount, 0, SEEK_END);
+        fwrite(&accountLi, sizeof(struct Account), 1, dbAccount);
+    } else {
+        printf("\nConta já existente.\nA combinação de agência com conta "
+                                                        "deve ser única.\n");
+    }
+}
+
+
+// Make sure there is no repeated Bank number with Account number.
+// Returns true if not repeated and false otherwise.
+bool checkAccount(char *bankNum, char *accountNum, FILE *dbAccount)
+{
+    struct Account accountLi;
+    rewind(dbAccount);
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAccount)) {
+        if (strcmp(accountLi.bankNum, bankNum) == 0)
+            return false;
+        else if (strcmp(accountLi.accountNum, accountNum) == 0)
+            return false;
+    }
+    return true;
+}
 
 
 int main(int argc, char *argv[])
@@ -54,14 +143,16 @@ int main(int argc, char *argv[])
 
     FILE *dbAccount;
     dbAccount = fopen(argv[2], "r+b");
-    if (dbAccount == NULL)
+    if (dbAccount == NULL) {
         dbAccount = fopen(argv[2], "w+b");
+    }
 
 
-    int test = menuMain(dbClient);
+    int test = menuMain(dbClient, dbAccount);
     printf("%c\n", test);
 
     fclose(dbClient);
+    fclose(dbAccount);
 
     return 0;
 }
@@ -78,15 +169,16 @@ int stringComp(const void *s1, const void *s2)
 
 // Close database before exit. Exit already performs close,
 // but step is required by instructors.
-int cleanExit(FILE *dbClient, int a)
+int cleanExit(FILE *dbClient, FILE *dbAccount, int a)
 {
     fclose(dbClient);
+    fclose(dbAccount);
     exit(a);
 }
 
 
 
-int menuMain(FILE *dbClient)
+int menuMain(FILE *dbClient, FILE *dbAccount)
 {
     int input;
 
@@ -110,13 +202,13 @@ int menuMain(FILE *dbClient)
 
         switch (input) {
             case 'c':
-                menuClient(dbClient);
+                menuClient(dbClient, dbAccount);
                 break;
             case 't':
-                menuConta(dbClient);
+                menuConta(dbClient, dbAccount);
                 break;
             case 's':
-                cleanExit(dbClient, 0);
+                cleanExit(dbClient, dbAccount, 0);
                 break;
         }
 
@@ -124,7 +216,7 @@ int menuMain(FILE *dbClient)
 }
 
 
-void menuClient(FILE *dbClient)
+void menuClient(FILE *dbClient, FILE *dbAccount)
 {
     int input;
     int id = 0;
@@ -181,7 +273,7 @@ void menuClient(FILE *dbClient)
         case 'v':
             break;
         case 's':
-            cleanExit(dbClient, 0);
+            cleanExit(dbClient, dbAccount, 0);
             break;
         default:
             break;
@@ -189,9 +281,10 @@ void menuClient(FILE *dbClient)
 }
 
 
-void menuConta(FILE *dbClient)
+void menuConta(FILE *dbClient, FILE *dbAccount)
 {
     int input;
+    int id;
 
     printf("\n============= Gerenciar Contas =============\n"
            "Digite um comando para prosseguir:\n"
@@ -219,8 +312,15 @@ void menuConta(FILE *dbClient)
              (input != 'e') && (input != 'v') && (input != 's'));
 
     switch (input) {
+        case 'c':
+            id = searchClient(dbClient);
+            if (id != 0) {
+                printf("\n");
+                addAccount(dbAccount, id);
+            }
+            break;
         case 's':
-            cleanExit(dbClient, 0);
+            cleanExit(dbClient, dbAccount, 0);
             break;
         default:
             break;
