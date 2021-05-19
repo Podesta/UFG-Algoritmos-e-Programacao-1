@@ -13,6 +13,7 @@ void listClient(FILE *dbClient);
 bool checkClient(int id, char *cpf, FILE *dbClient);
 int cleanExit(FILE *dbClient, FILE *dbAccount, int a);
 int stringComp(const void *s1, const void *s2);
+void sortClient(FILE *dbClient);
 int searchClient(FILE *dbClient);
 long positionClient(FILE *dbClient, int id);
 void zeroClient(FILE *dbClient, long position);
@@ -20,8 +21,12 @@ void removeClient(FILE *dbClient, long position);
 
 void addAccount(FILE *dbAccount, int idClient);
 bool checkAccount(char *bankNum, char *accountNum, FILE *dbAccount);
+int longComp(const void *p1, const void *p2);
+void sortAccount(FILE *dbAccount);
+void listAllAcc(FILE *dbAccount, FILE *dbClient);
 
 struct Account {
+    int id;
     int idClient;
     char bankNum[5];
     char accountNum[11];
@@ -31,7 +36,7 @@ struct Account {
 struct Cliente {
     int id;
     char nome[30];
-    char cpf[15];   // CNPJ pode ter 14 digitos
+    char cpf[15];
     char phone[15];
     char addr[90];
 };
@@ -39,10 +44,23 @@ struct Cliente {
 void addAccount(FILE *dbAccount, int idClient)
 {
     struct Account accountLi;
+    int id;
     char bankNum[5];
     char accountNum[11];
     size_t length = 0;
     bool isNumber = false;
+
+    // Get index from database
+    FILE *idAcc;
+    idAcc = fopen("indexAcc.db", "r+b");
+    if (idAcc == NULL) {
+        id = 0;
+        idAcc = fopen("indexAcc.db", "w+b");
+        fwrite(&id, sizeof(int), 1, idAcc);
+    }
+    rewind(idAcc);
+    fread(&id, sizeof(int), 1, idAcc);
+
 
     while (!isNumber) {
         printf("Informe a agência: ");
@@ -85,10 +103,11 @@ void addAccount(FILE *dbAccount, int idClient)
 
     if (checkAccount(bankNum, accountNum, dbAccount)) {
 
+        accountLi.id = id;
         accountLi.idClient = idClient;
         strcpy(accountLi.bankNum, bankNum);
         strcpy(accountLi.accountNum, accountNum);
-        accountLi.balance = 0;
+        accountLi.balance = rand() % 1000;
 
         printf("\nConta adicionada com sucesso!\n"
                 "Cliente: %d\n"
@@ -96,6 +115,11 @@ void addAccount(FILE *dbAccount, int idClient)
                 "Conta:   %s\n"
                 "Saldo:   %lld\n", accountLi.idClient, accountLi.bankNum,
                 accountLi.accountNum, accountLi.balance);
+
+        ++id;
+        fseek(idAcc, 0, SEEK_SET);
+        fwrite(&id, sizeof(int), 1, idAcc);
+        fclose(idAcc);
 
         fseek(dbAccount, 0, SEEK_END);
         fwrite(&accountLi, sizeof(struct Account), 1, dbAccount);
@@ -119,6 +143,89 @@ bool checkAccount(char *bankNum, char *accountNum, FILE *dbAccount)
             return false;
     }
     return true;
+}
+
+/*
+int longComp(const void *p1, const void *p2)
+{
+    struct Account *v1 = (struct Account *)p1;
+    struct Account *v2 = (struct Account *)p2;
+    return (int)(v1->balance - v2->balance);
+}*/
+int longComp(const void *p1, const void *p2)
+{
+    long long v1 = ((struct Account *)p1) -> balance;
+    long long v2 = ((struct Account *)p2) -> balance;
+
+    if (v1 < v2)
+        return -1;
+    else if (v1 == v2)
+        return 0;
+    else
+        return 1;
+}
+
+
+void sortAccount(FILE *dbAccount)
+{
+    struct Account accountLi;
+    rewind (dbAccount);
+
+    // Get how many elements in the file
+    size_t qtyAccount = 0;
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAccount) == 1)
+        ++qtyAccount;
+
+    // Store everything in an array
+    rewind(dbAccount);
+    struct Account sortAcc[qtyAccount];
+    for (size_t i = 0; i < qtyAccount; ++i)
+        fread(&sortAcc[i], sizeof(struct Account), 1, dbAccount);
+
+    // Sort
+    qsort(sortAcc, qtyAccount, sizeof(struct Account), longComp);
+    for (size_t i = 0; i < qtyAccount; ++i)
+
+    // Overwrite file with sorted accounts
+    fseek(dbAccount, 0, SEEK_SET);
+    for (size_t i = 0; i < qtyAccount; ++i)
+        fwrite(&sortAcc[i], sizeof(struct Account), 1, dbAccount);
+}
+
+
+void listAllAcc(FILE *dbAccount, FILE *dbClient)
+{
+    struct Cliente clienteLi;
+    struct Account accountLi;
+    int noAccount = 0;
+
+    rewind(dbClient);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+        noAccount = 0;
+        printf("\n\n"
+               "Código:   %d\n"
+               "Nome:     %s\n"
+               "CPF/CNPJ: %s\n"
+               "Telefone: %s\n"
+               "Endereço: %s\n"
+               "Contas:\n",
+               clienteLi.id, clienteLi.nome, clienteLi.cpf,
+               clienteLi.phone, clienteLi.addr);
+
+        rewind(dbAccount);
+        while (fread(&accountLi, sizeof(struct Account), 1, dbAccount)) {
+            if (clienteLi.id == accountLi.idClient) {
+                printf("\n"
+                       "    Agência: %s\n"
+                       "    Conta:   %s\n"
+                       "    Saldo:   %lld\n", accountLi.bankNum,
+                        accountLi.accountNum, accountLi.balance);
+                ++noAccount;
+            }
+        }
+        if (noAccount == 0)
+            printf("\n    Nenhuma conta cadastrada.\n");
+    }
 }
 
 
@@ -176,6 +283,30 @@ int cleanExit(FILE *dbClient, FILE *dbAccount, int a)
     exit(a);
 }
 
+
+void sortClient(FILE *dbClient)
+{
+    struct Cliente clienteLi;
+    rewind(dbClient);
+
+    // Get how many elemets are in the struct
+    size_t qtyClient = 0;
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient) == 1)
+        ++qtyClient;
+
+    // Store all of the structs into an array for use with qsort
+    rewind(dbClient);
+    struct Cliente sortCli[qtyClient];
+    for (size_t i = 0; i < qtyClient; ++i)
+        fread(&sortCli[i], sizeof(struct Cliente), 1, dbClient);
+
+    qsort(sortCli, qtyClient, sizeof(struct Cliente), stringComp);
+
+    // Overwrite new sorted database
+    fseek(dbClient, 0, SEEK_SET);
+    for (size_t i = 0; i < qtyClient; ++i)
+        fwrite(&sortCli[i], sizeof(struct Cliente), 1, dbClient);
+}
 
 
 int menuMain(FILE *dbClient, FILE *dbAccount)
@@ -250,6 +381,7 @@ void menuClient(FILE *dbClient, FILE *dbAccount)
             addClient(dbClient, position);
             break;
         case 'l':
+            sortClient(dbClient);
             listClient(dbClient);
             break;
         case 'b':
@@ -312,6 +444,11 @@ void menuConta(FILE *dbClient, FILE *dbAccount)
              (input != 'e') && (input != 'v') && (input != 's'));
 
     switch (input) {
+        case 'r':
+            sortClient(dbClient);
+            sortAccount(dbAccount);
+            listAllAcc(dbAccount, dbClient);
+            break;
         case 'c':
             id = searchClient(dbClient);
             if (id != 0) {
@@ -432,6 +569,21 @@ bool checkClient(int id, char *cpf, FILE *dbClient)
 void listClient(FILE *dbClient)
 {
     struct Cliente clienteLi;
+
+    rewind(dbClient);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+        printf("Código:   %d\n"
+                "Nome:     %s\n"
+                "CPF/CNPJ: %s\n"
+                "Telefone: %s\n"
+                "Endereço: %s\n\n",
+                clienteLi.id, clienteLi.nome, clienteLi.cpf,
+                clienteLi.phone, clienteLi.addr);
+    }
+
+    //TODO: DELETE ONCE VALIDATED
+    /** New sorting function **
+    struct Cliente clienteLi;
     rewind(dbClient);
 
     // Get how many elemets are in the struct
@@ -465,7 +617,10 @@ void listClient(FILE *dbClient)
                 sortCli[i].id, sortCli[i].nome, sortCli[i].cpf,
                 sortCli[i].phone, sortCli[i].addr);
     }
+***************************/
 }
+
+
 
 
 // Returns id, so the functions can be reused when sarching accounts.
@@ -480,7 +635,7 @@ int searchClient(FILE *dbClient)
     size_t length;
     int id;
 
-    printf("/nBuscar Cliente. A busca pode ser feita por CPF/CNPJ ou código,\n"
+    printf("\nBuscar Cliente. A busca pode ser feita por CPF/CNPJ ou código,\n"
            "seguindo o exemplo abaixo:\n"
            "cpf:<NUMERO DO CPF>\ncod:<NUMERO DO CODIGO>\n");
     fgets(type, 5, stdin);
