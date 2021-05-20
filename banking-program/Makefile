@@ -8,3 +8,6 @@ OBJ=lclient.o laccount.o menu.o
 
 banking-app: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
+
+clean:
+	rm *.o banking-app
