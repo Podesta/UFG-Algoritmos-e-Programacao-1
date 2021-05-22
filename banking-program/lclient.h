@@ -16,17 +16,17 @@ struct Cliente {
     char addr[90];
 };
 
-int menuMain(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction);
-void menuClient(FILE *dbClient, FILE *dbAccount);
-void addClient(FILE *dbClient, long position);
-void listClient(FILE *dbClient);
-bool checkClient(int id, char *cpf, FILE *dbClient);
-int cleanExit(FILE *dbClient, FILE *dbAccount, int a);
+int menuMain(FILE *dbCli, FILE *dbAcc, FILE *dbTra);
+void menuClient(FILE *dbCli, FILE *dbAcc);
+void addClient(FILE *dbCli, long position);
+void listClient(FILE *dbCli);
+bool checkClient(int id, char *cpf, FILE *dbCli);
+int cleanExit(FILE *dbCli, FILE *dbAcc, int a);
 int stringComp(const void *s1, const void *s2);
-void sortClient(FILE *dbClient);
-int searchClient(FILE *dbClient);
-long positionClient(FILE *dbClient, int id);
-void zeroClient(FILE *dbClient, long position);
-void removeClient(FILE *dbClient, long position);
+void sortClient(FILE *dbCli);
+int searchClient(FILE *dbCli);
+long positionClient(FILE *dbCli, int id);
+void zeroClient(FILE *dbCli, long position);
+void removeClient(FILE *dbCli, long position);
 
 #endif

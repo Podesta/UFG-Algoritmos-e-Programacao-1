@@ -15,28 +15,28 @@ int main(int argc, char *argv[])
         return 1;
     }
     
-    FILE *dbClient;
-    dbClient = fopen(argv[1], "r+b");
-    if (dbClient == NULL)
-        dbClient = fopen(argv[1], "w+b");
+    FILE *dbCli;
+    dbCli = fopen(argv[1], "r+b");
+    if (dbCli == NULL)
+        dbCli = fopen(argv[1], "w+b");
 
-    FILE *dbAccount;
-    dbAccount = fopen(argv[2], "r+b");
-    if (dbAccount == NULL) {
-        dbAccount = fopen(argv[2], "w+b");
+    FILE *dbAcc;
+    dbAcc = fopen(argv[2], "r+b");
+    if (dbAcc == NULL) {
+        dbAcc = fopen(argv[2], "w+b");
     }
 
-    FILE *dbTransaction;
-    dbTransaction = fopen(argv[3], "r+b");
-    if (dbTransaction == NULL) {
-        dbTransaction = fopen (argv[3], "w+b");
+    FILE *dbTra;
+    dbTra = fopen(argv[3], "r+b");
+    if (dbTra == NULL) {
+        dbTra = fopen (argv[3], "w+b");
     }
 
-    int test = menuMain(dbClient, dbAccount, dbTransaction);
+    int test = menuMain(dbCli, dbAcc, dbTra);
     printf("%c\n", test);
 
-    fclose(dbClient);
-    fclose(dbAccount);
+    fclose(dbCli);
+    fclose(dbAcc);
 
     return 0;
 }

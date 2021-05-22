@@ -6,16 +6,16 @@
 #include <stdbool.h>
 #include <time.h>
 
-void menuConta(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction);
-void addAccount(FILE *dbAccount, int idClient);
-bool checkAccount(char *bankNum, char *accountNum, FILE *dbAccount);
+void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra);
+void addAccount(FILE *dbAcc, int idClient);
+bool checkAccount(char *bankNum, char *accountNum, FILE *dbAcc);
 int longComp(const void *p1, const void *p2);
-void sortAccount(FILE *dbAccount);
-void listAccount(FILE *dbAccount, FILE *dbClient, bool printAll, int id);
-bool searchAccount(FILE *dbAccount, int *idAcc, int *idCli);
-void printClient(FILE *dbClient, int idCli);
-void printAccount(FILE *dbAccount, int idAcc);
-//long long withdraw(FILE *db
+void sortAccount(FILE *dbAcc);
+void listAccount(FILE *dbAcc, FILE *dbCli, bool printAll, int id);
+bool searchAccount(FILE *dbAcc, int *idAcc, int *idCli);
+void printClient(FILE *dbCli, int idCli);
+void printAccount(FILE *dbAcc, int idAcc);
+long long withdraw(FILE *dbAcc, FILE *dbTra, int idAcc, bool transfer);
 
 struct Account {
     int id;

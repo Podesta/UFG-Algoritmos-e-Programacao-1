@@ -8,43 +8,40 @@ int stringComp(const void *s1, const void *s2)
                   ((struct Cliente *)s2) -> nome);
 }
 
-
 // Close database before exit. Exit already performs close,
 // but step is required by instructors.
-int cleanExit(FILE *dbClient, FILE *dbAccount, int a)
+int cleanExit(FILE *dbCli, FILE *dbAcc, int a)
 {
-    fclose(dbClient);
-    fclose(dbAccount);
+    fclose(dbCli);
+    fclose(dbAcc);
     exit(a);
 }
 
-
-void sortClient(FILE *dbClient)
+void sortClient(FILE *dbCli)
 {
     struct Cliente clienteLi;
-    rewind(dbClient);
+    rewind(dbCli);
 
     // Get how many elemets are in the struct
     size_t qtyClient = 0;
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient) == 1)
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli) == 1)
         ++qtyClient;
 
     // Store all of the structs into an array for use with qsort
-    rewind(dbClient);
+    rewind(dbCli);
     struct Cliente sortCli[qtyClient];
     for (size_t i = 0; i < qtyClient; ++i)
-        fread(&sortCli[i], sizeof(struct Cliente), 1, dbClient);
+        fread(&sortCli[i], sizeof(struct Cliente), 1, dbCli);
 
     qsort(sortCli, qtyClient, sizeof(struct Cliente), stringComp);
 
     // Overwrite new sorted database
-    fseek(dbClient, 0, SEEK_SET);
+    fseek(dbCli, 0, SEEK_SET);
     for (size_t i = 0; i < qtyClient; ++i)
-        fwrite(&sortCli[i], sizeof(struct Cliente), 1, dbClient);
+        fwrite(&sortCli[i], sizeof(struct Cliente), 1, dbCli);
 }
 
-
-int menuMain(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction)
+int menuMain(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
 {
     int input;
 
@@ -68,21 +65,20 @@ int menuMain(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction)
 
         switch (input) {
             case 'c':
-                menuClient(dbClient, dbAccount);
+                menuClient(dbCli, dbAcc);
                 break;
             case 't':
-                menuConta(dbClient, dbAccount, dbTransaction);
+                menuConta(dbCli, dbAcc, dbTra);
                 break;
             case 's':
-                cleanExit(dbClient, dbAccount, 0);
+                cleanExit(dbCli, dbAcc, 0);
                 break;
         }
 
     }
 }
 
-
-void menuClient(FILE *dbClient, FILE *dbAccount)
+void menuClient(FILE *dbCli, FILE *dbAcc)
 {
     int input;
     int id = 0;
@@ -113,41 +109,41 @@ void menuClient(FILE *dbClient, FILE *dbAccount)
 
     switch (input) {
         case 'c':
-            addClient(dbClient, position);
+            addClient(dbCli, position);
             break;
         case 'l':
-            sortClient(dbClient);
-            listClient(dbClient);
+            sortClient(dbCli);
+            listClient(dbCli);
             break;
         case 'b':
-            searchClient(dbClient);
+            searchClient(dbCli);
             break;
         case 'a':
-            id = searchClient(dbClient);
-            position = positionClient(dbClient, id);
+            id = searchClient(dbCli);
+            position = positionClient(dbCli, id);
             if (id != 0) {
                 printf("\n");
-                zeroClient(dbClient, position);
-                addClient(dbClient, position);
+                zeroClient(dbCli, position);
+                addClient(dbCli, position);
             }
             break;
         case 'e':
-            id = searchClient(dbClient);
-            position = positionClient(dbClient, id);
+            id = searchClient(dbCli);
+            position = positionClient(dbCli, id);
             if (id != 0)
-                removeClient(dbClient, position);
+                removeClient(dbCli, position);
             break;
         case 'v':
             break;
         case 's':
-            cleanExit(dbClient, dbAccount, 0);
+            cleanExit(dbCli, dbAcc, 0);
             break;
         default:
             break;
     }
 }
 
-void addClient(FILE *dbClient, long position)
+void addClient(FILE *dbCli, long position)
 {
     int id;
     char nome[30];
@@ -200,7 +196,7 @@ void addClient(FILE *dbClient, long position)
     else
         while (getchar() != '\n');
 
-    if (checkClient(id, cpf, dbClient)) {
+    if (checkClient(id, cpf, dbCli)) {
             struct Cliente clienteLi;
             clienteLi.id = id;
             strcpy(clienteLi.nome, nome);
@@ -219,12 +215,12 @@ void addClient(FILE *dbClient, long position)
 
             // Used when updating
             if (position == 0)
-                fseek(dbClient, 0, SEEK_END);
+                fseek(dbCli, 0, SEEK_END);
             else
-                fseek(dbClient, ((long)sizeof(struct Cliente) * (position - 1)),
+                fseek(dbCli, ((long)sizeof(struct Cliente) * (position - 1)),
                                                                     SEEK_SET);
 
-            fwrite(&clienteLi, sizeof(struct Cliente), 1, dbClient);
+            fwrite(&clienteLi, sizeof(struct Cliente), 1, dbCli);
     } else {
         printf("\nCliente já cadastrado no banco de dados.\n"
                "Cliente deve ter Código e CPF/CNPJ únicos.\n");
@@ -233,11 +229,11 @@ void addClient(FILE *dbClient, long position)
 
 // Make sure there is no repeated ID or CPF/CNPJ
 // Returns true if not repeated and false otherwise.
-bool checkClient(int id, char *cpf, FILE *dbClient)
+bool checkClient(int id, char *cpf, FILE *dbCli)
 {
     struct Cliente clienteLi;
-    rewind(dbClient);
-    while(fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+    rewind(dbCli);
+    while(fread(&clienteLi, sizeof(struct Cliente), 1, dbCli)) {
         if (clienteLi.id == id)
             return false;
         else if (strcmp(clienteLi.cpf, cpf) == 0)
@@ -248,12 +244,12 @@ bool checkClient(int id, char *cpf, FILE *dbClient)
 }
 
 
-void listClient(FILE *dbClient)
+void listClient(FILE *dbCli)
 {
     struct Cliente clienteLi;
 
-    rewind(dbClient);
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+    rewind(dbCli);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli)) {
         printf("Código:   %d\n"
                 "Nome:     %s\n"
                 "CPF/CNPJ: %s\n"
@@ -262,52 +258,11 @@ void listClient(FILE *dbClient)
                 clienteLi.id, clienteLi.nome, clienteLi.cpf,
                 clienteLi.phone, clienteLi.addr);
     }
-
-    //TODO: DELETE ONCE VALIDATED
-    /** New sorting function **
-    struct Cliente clienteLi;
-    rewind(dbClient);
-
-    // Get how many elemets are in the struct
-    size_t qtyClient = 0;
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient) == 1)
-        ++qtyClient;
-
-    printf("\n============= Lista de Clientes ============\n");
-    if (qtyClient == 0) {
-        printf("Nenhum cliente cadastrado.\n");
-        return;
-    }
-
-    // Store all of the structs into an array for use with qsort
-    rewind(dbClient);
-    struct Cliente sortCli[qtyClient];
-    for (size_t i = 0; i < qtyClient; ++i)
-        fread(&sortCli[i], sizeof(struct Cliente), 1, dbClient);
-
-    qsort(sortCli, qtyClient, sizeof(struct Cliente), stringComp);
-
-    // Overwrite new sorted database, and also print it
-    fseek(dbClient, 0, SEEK_SET);
-    for (size_t i = 0; i < qtyClient; ++i) {
-        fwrite(&sortCli[i], sizeof(struct Cliente), 1, dbClient);
-        printf("Código:   %d\n"
-               "Nome:     %s\n"
-               "CPF/CNPJ: %s\n"
-               "Telefone: %s\n"
-               "Endereço: %s\n\n",
-                sortCli[i].id, sortCli[i].nome, sortCli[i].cpf,
-                sortCli[i].phone, sortCli[i].addr);
-    }
-***************************/
 }
-
-
-
 
 // Returns id, so the functions can be reused when sarching accounts.
 // The previous position return has been made it's own function.
-int searchClient(FILE *dbClient)
+int searchClient(FILE *dbCli)
 {
     struct Cliente clienteLi;
     char type[5];
@@ -321,7 +276,7 @@ int searchClient(FILE *dbClient)
            "seguindo o exemplo abaixo:\n"
            "cpf:<NUMERO DO CPF>\ncod:<NUMERO DO CODIGO>\n");
     fgets(type, 5, stdin);
-    rewind(dbClient);
+    rewind(dbCli);
 
     // If fgets got the new line, get rid of it, but no need to clear the buffer
     // Otherwise, clear the buffer with getchar
@@ -333,7 +288,7 @@ int searchClient(FILE *dbClient)
         else
             while (getchar() != '\n');
 
-        while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+        while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli)) {
             if (strcmp(cpf, clienteLi.cpf) == 0) {
                 printf("\nCliente com CPF/CNPJ encontrado:\n"
                         "Código:   %d\n"
@@ -356,7 +311,7 @@ int searchClient(FILE *dbClient)
         }
         while (getchar() != '\n');
 
-        while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+        while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli)) {
             if (id == clienteLi.id) {
                 printf("\nCliente com código encontrado:\n"
                         "Código:   %d\n"
@@ -380,15 +335,15 @@ int searchClient(FILE *dbClient)
 // ftell divided by sizeof. Do not subtract now to prevent function from
 // returning 0. Subtract by sizeof, or 1, if already divided, before use. This 
 // way pointer can go to the beginning of the position that needs to be changed
-long positionClient(FILE *dbClient, int id)
+long positionClient(FILE *dbCli, int id)
 {
     struct Cliente clienteLi;
     long position = 0;
 
-    rewind(dbClient);
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+    rewind(dbCli);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli)) {
         if (id == clienteLi.id) {
-            position = (ftell(dbClient) / (long int)sizeof(struct Cliente));
+            position = (ftell(dbCli) / (long int)sizeof(struct Cliente));
             return position;
         }
     }
@@ -396,50 +351,47 @@ long positionClient(FILE *dbClient, int id)
     return 1;
 }
 
-
-
 // Zero position on the file, so that when updating it doen't get matched
 // as a repeated cod or cpf/cnpj by checkClient();
-void zeroClient(FILE *dbClient, long position)
+void zeroClient(FILE *dbCli, long position)
 {
     struct Cliente clienteLi;
     memset(&clienteLi, 0, sizeof(struct Cliente));
-    fseek(dbClient, ((long)sizeof(struct Cliente) * (position - 1)), SEEK_SET);
-    fwrite(&clienteLi, sizeof(struct Cliente), 1, dbClient);
+    fseek(dbCli, ((long)sizeof(struct Cliente) * (position - 1)), SEEK_SET);
+    fwrite(&clienteLi, sizeof(struct Cliente), 1, dbCli);
 }
-
 
 // Load everything into ram, remove the target client, and write again to file
 // and truncate. Another option would be creating a new file, and renaming both
 // but I need to pass argv[] all the way to this function. And third option,
 // currently implemented, is simply reopening the file with the w+b option, and
 // that will truncate the file, and then write, while keeping the FILE stream.
-void removeClient(FILE *dbClient, long position)
+void removeClient(FILE *dbCli, long position)
 {
     struct Cliente clienteLi;
     int qtyClient = 0;
     --position;
 
-    rewind(dbClient);
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient) == 1)
+    rewind(dbCli);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli) == 1)
         ++qtyClient;
 
-    rewind(dbClient);
+    rewind(dbCli);
     struct Cliente removeCli[qtyClient];
     for (long i = 0; i < qtyClient; ++i) {
         if (i == position) {
-            fseek(dbClient, sizeof(struct Cliente), SEEK_CUR);
+            fseek(dbCli, sizeof(struct Cliente), SEEK_CUR);
             continue;
         }
-        fread(&removeCli[i], sizeof(struct Cliente), 1, dbClient);
+        fread(&removeCli[i], sizeof(struct Cliente), 1, dbCli);
     }
 
-    freopen(NULL, "w+b", dbClient);
-    rewind(dbClient);
+    freopen(NULL, "w+b", dbCli);
+    rewind(dbCli);
     for (long i = 0; i < qtyClient; ++i) {
         if (i == position)
             continue;
-        fwrite(&removeCli[i], sizeof(struct Cliente), 1, dbClient);
+        fwrite(&removeCli[i], sizeof(struct Cliente), 1, dbCli);
     }
     printf("Cliente removido com sucesso!\n");
 }

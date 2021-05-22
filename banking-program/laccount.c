@@ -1,12 +1,13 @@
 #include "laccount.h"
 #include "lclient.h"
 
-void menuConta(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction)
+void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
 {
     int input;
     int id;
     int idAcc;
     int idCli;
+    long long value;
 
     printf("\n============= Gerenciar Contas =============\n"
            "Digite um comando para prosseguir:\n"
@@ -35,42 +36,44 @@ void menuConta(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction)
 
     switch (input) {
         case 'r':
-            sortClient(dbClient);
-            sortAccount(dbAccount);
-            listAccount(dbAccount, dbClient, true, -1);
+            sortClient(dbCli);
+            sortAccount(dbAcc);
+            listAccount(dbAcc, dbCli, true, -1);
             break;
         case 'c':
-            id = searchClient(dbClient);
+            id = searchClient(dbCli);
             if (id != 0) {
                 printf("\n");
-                addAccount(dbAccount, id);
+                addAccount(dbAcc, id);
             }
             break;
         case 'l':
-            sortClient(dbClient);
-            sortAccount(dbAccount);
-            id = searchClient(dbClient);
+            sortClient(dbCli);
+            sortAccount(dbAcc);
+            id = searchClient(dbCli);
             if (id != 0)
-                listAccount(dbAccount, dbClient, false, id);
+                listAccount(dbAcc, dbCli, false, id);
             break;
         case 'w':
-            if (searchAccount(dbAccount, &idAcc, &idCli)) {
-                printClient(dbClient, idCli);
-                printAccount(dbAccount, idAcc);
+            if (searchAccount(dbAcc, &idAcc, &idCli)) {
+                printClient(dbCli, idCli);
+                printAccount(dbAcc, idAcc);
+                value = withdraw(dbAcc, dbTra, idAcc, false);
+
 
             } else {
                 printf("\nConta não encontrada.\n");
             }
             break;
         case 's':
-            cleanExit(dbClient, dbAccount, 0);
+            cleanExit(dbCli, dbAcc, 0);
             break;
         default:
             break;
     }
 }
 
-void addAccount(FILE *dbAccount, int idClient)
+void addAccount(FILE *dbAcc, int idClient)
 {
     struct Account accountLi;
     int id;
@@ -130,7 +133,7 @@ void addAccount(FILE *dbAccount, int idClient)
         }
     }
 
-    if (checkAccount(bankNum, accountNum, dbAccount)) {
+    if (checkAccount(bankNum, accountNum, dbAcc)) {
 
         accountLi.id = id;
         accountLi.idClient = idClient;
@@ -150,8 +153,8 @@ void addAccount(FILE *dbAccount, int idClient)
         fwrite(&id, sizeof(int), 1, idAcc);
         fclose(idAcc);
 
-        fseek(dbAccount, 0, SEEK_END);
-        fwrite(&accountLi, sizeof(struct Account), 1, dbAccount);
+        fseek(dbAcc, 0, SEEK_END);
+        fwrite(&accountLi, sizeof(struct Account), 1, dbAcc);
     } else {
         printf("\nConta já existente.\nA combinação de agência com conta "
                                                         "deve ser única.\n");
@@ -160,11 +163,11 @@ void addAccount(FILE *dbAccount, int idClient)
 
 // Make sure there is no repeated Bank number with Account number.
 // Returns true if not repeated and false otherwise.
-bool checkAccount(char *bankNum, char *accountNum, FILE *dbAccount)
+bool checkAccount(char *bankNum, char *accountNum, FILE *dbAcc)
 {
     struct Account accountLi;
-    rewind(dbAccount);
-    while (fread(&accountLi, sizeof(struct Account), 1, dbAccount)) {
+    rewind(dbAcc);
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAcc)) {
         if (strcmp(accountLi.bankNum, bankNum) == 0)
             return false;
         else if (strcmp(accountLi.accountNum, accountNum) == 0)
@@ -193,42 +196,42 @@ int longComp(const void *p1, const void *p2)
         return 1;
 }
 
-void sortAccount(FILE *dbAccount)
+void sortAccount(FILE *dbAcc)
 {
     struct Account accountLi;
-    rewind (dbAccount);
+    rewind (dbAcc);
 
     // Get how many elements in the file
     size_t qtyAccount = 0;
-    while (fread(&accountLi, sizeof(struct Account), 1, dbAccount) == 1)
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAcc) == 1)
         ++qtyAccount;
 
     // Store everything in an array
-    rewind(dbAccount);
+    rewind(dbAcc);
     struct Account sortAcc[qtyAccount];
     for (size_t i = 0; i < qtyAccount; ++i)
-        fread(&sortAcc[i], sizeof(struct Account), 1, dbAccount);
+        fread(&sortAcc[i], sizeof(struct Account), 1, dbAcc);
 
     // Sort
     qsort(sortAcc, qtyAccount, sizeof(struct Account), longComp);
     for (size_t i = 0; i < qtyAccount; ++i)
 
     // Overwrite file with sorted accounts
-    fseek(dbAccount, 0, SEEK_SET);
+    fseek(dbAcc, 0, SEEK_SET);
     for (size_t i = 0; i < qtyAccount; ++i)
-        fwrite(&sortAcc[i], sizeof(struct Account), 1, dbAccount);
+        fwrite(&sortAcc[i], sizeof(struct Account), 1, dbAcc);
 }
 
 // If printAll is true, print all accounts, and ignore id
 // If printAll is false, print only when it matches id
-void listAccount(FILE *dbAccount, FILE *dbClient, bool printAll, int id)
+void listAccount(FILE *dbAcc, FILE *dbCli, bool printAll, int id)
 {
     struct Cliente clienteLi;
     struct Account accountLi;
     int noAccount = 0;
 
-    rewind(dbClient);
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+    rewind(dbCli);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli)) {
         if (printAll ? true : clienteLi.id == id) {
             noAccount = 0;
 
@@ -247,8 +250,8 @@ void listAccount(FILE *dbAccount, FILE *dbClient, bool printAll, int id)
 
                      : printf("Contas:\n");
 
-            rewind(dbAccount);
-            while (fread(&accountLi, sizeof(struct Account), 1, dbAccount)) {
+            rewind(dbAcc);
+            while (fread(&accountLi, sizeof(struct Account), 1, dbAcc)) {
                 if (clienteLi.id == accountLi.idClient) {
                     printf("\n"
                             "    Agência: %s\n"
@@ -266,7 +269,7 @@ void listAccount(FILE *dbAccount, FILE *dbClient, bool printAll, int id)
 
 // Pointers because I need to return two values, both the Client id and the
 // Account id itself.
-bool searchAccount(FILE *dbAccount, int *idAcc, int *idCli)
+bool searchAccount(FILE *dbAcc, int *idAcc, int *idCli)
 {
     struct Account accountLi;
 
@@ -275,7 +278,7 @@ bool searchAccount(FILE *dbAccount, int *idAcc, int *idCli)
     char accountNum[11];
     char *tmpCheck;     // Make sure I don't get a segmentation fault
     size_t length;
-    bool digitOrHi;
+    bool digitOrHy;
 
     printf("Informe o número da agência e conta separados por um hífen: ");
 
@@ -298,13 +301,13 @@ bool searchAccount(FILE *dbAccount, int *idAcc, int *idCli)
         length = strlen(combinedNum);
         for (size_t i = 0; i < length; ++i) {
             if (!(isdigit(combinedNum[i]) || combinedNum[i] == '-')) {
-                digitOrHi = false;
+                digitOrHy = false;
                 break;
             } else {
-                digitOrHi = true;
+                digitOrHy = true;
             }
         }
-        if (!digitOrHi) {
+        if (!digitOrHy) {
             printf("Entrada inválida. Entre os dados da maneira correta.\n");
             continue;
         }
@@ -333,8 +336,8 @@ bool searchAccount(FILE *dbAccount, int *idAcc, int *idCli)
         break;
     }
 
-    rewind(dbAccount);
-    while (fread(&accountLi, sizeof(struct Account), 1, dbAccount) == 1) {
+    rewind(dbAcc);
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAcc) == 1) {
         if ((strcmp(accountLi.bankNum, bankNum) == 0) &&
             (strcmp(accountLi.accountNum, accountNum) == 0)) {
             *idAcc = accountLi.id;
@@ -346,12 +349,12 @@ bool searchAccount(FILE *dbAccount, int *idAcc, int *idCli)
     return false;
 }
 
-void printClient(FILE *dbClient, int idCli)
+void printClient(FILE *dbCli, int idCli)
 {
     struct Cliente clienteLi;
 
-    rewind(dbClient);
-    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbClient)) {
+    rewind(dbCli);
+    while (fread(&clienteLi, sizeof(struct Cliente), 1, dbCli)) {
         if (clienteLi.id == idCli) {
             printf("\n"
                    "Código:   %d\n"
@@ -367,12 +370,12 @@ void printClient(FILE *dbClient, int idCli)
     printf("\n\nERRO AO PROCURAR CLIENTE!\n\n");
 }
 
-void printAccount(FILE *dbAccount, int idAcc)
+void printAccount(FILE *dbAcc, int idAcc)
 {
     struct Account accountLi;
 
-    rewind(dbAccount);
-    while (fread(&accountLi, sizeof(struct Account), 1, dbAccount)) {
+    rewind(dbAcc);
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAcc)) {
         if (accountLi.id == idAcc) {
             printf("\n"
                    "    Agência: %s\n"
@@ -384,3 +387,6 @@ void printAccount(FILE *dbAccount, int idAcc)
     }
     printf("\n\nERRO AO PROCURAR CONTA!\n\n");
 }
+
+long long withdraw(FILE *dbAcc, FILE *dbTra, int idAcc, bool transfer);
+
