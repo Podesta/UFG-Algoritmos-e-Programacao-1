@@ -44,7 +44,7 @@ void sortClient(FILE *dbClient)
 }
 
 
-int menuMain(FILE *dbClient, FILE *dbAccount)
+int menuMain(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction)
 {
     int input;
 
@@ -71,7 +71,7 @@ int menuMain(FILE *dbClient, FILE *dbAccount)
                 menuClient(dbClient, dbAccount);
                 break;
             case 't':
-                menuConta(dbClient, dbAccount);
+                menuConta(dbClient, dbAccount, dbTransaction);
                 break;
             case 's':
                 cleanExit(dbClient, dbAccount, 0);
@@ -147,59 +147,6 @@ void menuClient(FILE *dbClient, FILE *dbAccount)
     }
 }
 
-
-void menuConta(FILE *dbClient, FILE *dbAccount)
-{
-    int input;
-    int id;
-
-    printf("\n============= Gerenciar Contas =============\n"
-           "Digite um comando para prosseguir:\n"
-           "R – Listagem de todas as contas cadastradas.\n"
-           "C – Cadastrar uma conta para um cliente.\n"
-           "L – Listar todas as contas de um cliente.\n"
-           "W – Realizar um saque em uma conta.\n"
-           "D – Realizar um depósito em uma conta.\n"
-           "T – Realizar transferência entre contas.\n"
-           "E – Exibir extrato de uma conta.\n"
-           "V - Voltar\n"
-           "S – Sair\n");
-
-    do {
-        // Get first char and discards everything else, including newline
-        input = getchar();
-        while (getchar() != '\n');
-
-        // Accept both uppercase and lowercase. Transform to lowercase
-        if (input >= 'A' && input <= 'Z')
-            input += 'a' - 'A';
-
-    } while ((input != 'r') && (input != 'c') && (input != 'l') && 
-             (input != 'w') && (input != 'd') && (input != 't') &&
-             (input != 'e') && (input != 'v') && (input != 's'));
-
-    switch (input) {
-        case 'r':
-            sortClient(dbClient);
-            sortAccount(dbAccount);
-            listAllAcc(dbAccount, dbClient);
-            break;
-        case 'c':
-            id = searchClient(dbClient);
-            if (id != 0) {
-                printf("\n");
-                addAccount(dbAccount, id);
-            }
-            break;
-        case 's':
-            cleanExit(dbClient, dbAccount, 0);
-            break;
-        default:
-            break;
-    }
-}
-
-
 void addClient(FILE *dbClient, long position)
 {
     int id;
@@ -210,7 +157,7 @@ void addClient(FILE *dbClient, long position)
 
     printf("Informe o código do cliente: ");
     // Read scanf until it matches one int. Otherwise flush buffer and loop
-    while ((scanf("%d", &id) != 1) && (id <= 0)) {
+    while (scanf("%d", &id), id <= 0) {
         printf("Entrada inválida. Digite um número positivo para o ID do "
                                                                 "cliente.\n");
         while (getchar() != '\n');

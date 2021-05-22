@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     memset(clienteLi, 0, sizeof(clienteLi));
 
     // User must provide one and only one database at runtime
-    if (argc < 3 || argc > 3) {
+    if (argc < 4 || argc > 4) {
         printf("Por favor, informe os bancos de dados ao iniciar o programa na "
                "seguinte ordem:\n 1 - Banco de dados do cliente\n 2 - Banco "
                "de dados das Contas.\n 3 - Banco de dados das Transações.\n");
@@ -26,8 +26,13 @@ int main(int argc, char *argv[])
         dbAccount = fopen(argv[2], "w+b");
     }
 
+    FILE *dbTransaction;
+    dbTransaction = fopen(argv[3], "r+b");
+    if (dbTransaction == NULL) {
+        dbTransaction = fopen (argv[3], "w+b");
+    }
 
-    int test = menuMain(dbClient, dbAccount);
+    int test = menuMain(dbClient, dbAccount, dbTransaction);
     printf("%c\n", test);
 
     fclose(dbClient);

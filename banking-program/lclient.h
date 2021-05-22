@@ -16,9 +16,8 @@ struct Cliente {
     char addr[90];
 };
 
-int menuMain(FILE *dbClient, FILE *dbAccount);
+int menuMain(FILE *dbClient, FILE *dbAccount, FILE *dbTransaction);
 void menuClient(FILE *dbClient, FILE *dbAccount);
-void menuConta(FILE *dbClient, FILE *dbAccount);
 void addClient(FILE *dbClient, long position);
 void listClient(FILE *dbClient);
 bool checkClient(int id, char *cpf, FILE *dbClient);
