@@ -1,2 +1,11 @@
 # C object file
 *.o
+
+# Database files. Keep only backups
+indexAcc.db
+/database/accounts.db
+/database/clients.db
+/database/transactions.db
+
+# Personal changelog
+changelog.log
