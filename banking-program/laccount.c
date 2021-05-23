@@ -6,6 +6,7 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
     int input;
     int id;
     int idAcc;
+    int idRec;  // If a transfer, the receiving account
     int idCli;
     long long value;
 
@@ -58,9 +59,9 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
             if (searchAccount(dbAcc, &idAcc, &idCli)) {
                 printClient(dbCli, idCli);
                 printAccount(dbAcc, idAcc);
-                value = withdraw(dbAcc, dbTra, idAcc, false);
-
-
+                idRec = 0; // TODO:REMOVE
+                value = withdraw(dbAcc, dbTra, idAcc, idRec, false);
+                printf("saque de %lld\n", value);
             } else {
                 printf("\nConta não encontrada.\n");
             }
@@ -189,11 +190,11 @@ int longComp(const void *p1, const void *p2)
     long long v2 = ((struct Account *)p2) -> balance;
 
     if (v1 < v2)
-        return -1;
+        return 1;
     else if (v1 == v2)
         return 0;
     else
-        return 1;
+        return -1;
 }
 
 void sortAccount(FILE *dbAcc)
@@ -388,5 +389,150 @@ void printAccount(FILE *dbAcc, int idAcc)
     printf("\n\nERRO AO PROCURAR CONTA!\n\n");
 }
 
-long long withdraw(FILE *dbAcc, FILE *dbTra, int idAcc, bool transfer);
+long long withdraw(FILE *dbAcc, FILE *dbTra, int idAcc, int idRec, bool trsfr)
+{
+    struct Account accountLi;
+    struct Account rcvAcc;  // Receiving account, if trasnfer.
+    struct Transaction traLi;
+    long position;
+    double tmp;
+    long long amount;
+    char description[150];
+    int idTra;  // Transaction id. Auto generated.
+    time_t date;
+
+    rewind(dbAcc);
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAcc)) {
+        if (accountLi.id == idAcc) {
+            position = (ftell(dbAcc) - (long int)sizeof(struct Account));
+            break;
+        }
+    }
+
+    while (true) {
+        trsfr ?
+            printf("Valor a ser transferido: R$ ") :
+            printf("Valor a ser sacado: R$ ");
+
+        scanf("%lf", &tmp);
+
+        if (tmp <= 0) {
+            printf("Etrada inválida. Digite um valor positivo em reais.\n");
+            continue;
+        }
+
+        // Store in cents, and don't deal with float values;
+        amount = (long long)(tmp * 100);
+
+        // If withdrawing, do not accept coins. Only accept multiples of 2 or 5
+        if ((!trsfr) && ((amount % 100 != 0) ||
+                    (amount % 200 != 0 && amount % 500 != 0))) {
+            printf("Caixa contém somente notas de 2, 5, 10, 20, 50, 100 e 200 "
+                    "reais. Entre um valor apropriado.\n");
+            continue;
+        }
+        break;
+    }
+    while (getchar() != '\n');
+
+    if (amount > accountLi.balance) {
+        printf("Saldo insuficiente.\n");
+        return 0;
+    }
+
+    // Get Transaction id.
+    FILE *indexTra;
+    indexTra = fopen("indexTra.db", "r+b");
+    if (indexTra == NULL) {
+        indexTra = fopen("indexTra.db", "w+b");
+        idTra = 0;
+        fwrite(&idTra, sizeof(int), 1, indexTra);
+    }
+    rewind(indexTra);
+    fread(&idTra, sizeof(int), 1, indexTra);
+
+    // If transfer is true, get account info of the other account and set
+    // description as per specification.
+    if (trsfr) {
+        rewind(dbAcc);
+        while (fread(&rcvAcc, sizeof(struct Account), 1, dbAcc)) {
+            if (rcvAcc.id == idRec)
+                break;
+        }
+
+        snprintf(description, sizeof(description),
+                 "Transferência de R$%.2lf para conta: %s-%s.",
+                 ((double)amount / 100), rcvAcc.bankNum, rcvAcc.accountNum);
+        time(&date);
+        ++idTra;
+
+        traLi.id = idTra;
+        traLi.idAccount = idAcc;
+        traLi.credit = false;
+        traLi.debit = true;
+        traLi.amount = amount;
+        traLi.date = date;
+        strcpy(traLi.description, description);
+
+        accountLi.balance -= amount;
+
+        fseek(dbTra, 0, SEEK_END);
+        fwrite(&traLi, sizeof(struct Transaction), 1, dbTra);
+
+        fseek(dbAcc, position, SEEK_SET);
+        fwrite(&accountLi, sizeof(struct Account), 1, dbAcc);
+
+        fseek(indexTra, 0, SEEK_SET);
+        fwrite(&idTra, sizeof(int), 1, indexTra);
+        fclose(indexTra);
+
+        printf("\nTransferência realizada com sucesso!\n"
+               "Novo saldo: R$ %.2lf.\n", (double)accountLi.balance / 100);
+
+        return amount;
+    }
+
+    // Redundant. Here to make it clear that it is for basic withdraw.
+    if (!trsfr) {
+        printf("Informe a descrição para o saque: ");
+        fgets(description, 150, stdin);
+        size_t length = strlen(description);
+        if (description[length - 1] == '\n')
+            description[length - 1] = 0;
+        else
+            while (getchar() != '\n');
+
+        time(&date);
+        ++idTra;
+
+        traLi.id = idTra;
+        traLi.idAccount = idAcc;
+        traLi.credit = false;
+        traLi.debit = true;
+        traLi.amount = amount;
+        traLi.date = date;
+        strcpy(traLi.description, description);
+
+        accountLi.balance -= amount;
+
+        fseek(dbTra, 0, SEEK_END);
+        fwrite(&traLi, sizeof(struct Transaction), 1, dbTra);
+
+        fseek(dbAcc, position, SEEK_SET);
+        fwrite(&accountLi, sizeof(struct Account), 1, dbAcc);
+
+        fseek(indexTra, 0, SEEK_SET);
+        fwrite(&idTra, sizeof(int), 1, indexTra);
+        fclose(indexTra);
+
+        return amount;
+    }
+    printf("\n\nERRO AO SACAR DINHEIRO!\n\n");
+    return 0;
+}
+
+
+
+
+
 

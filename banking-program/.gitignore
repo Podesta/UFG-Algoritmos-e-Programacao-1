@@ -3,6 +3,7 @@
 
 # Database files. Keep only backups
 indexAcc.db
+indexTra.db
 /database/accounts.db
 /database/clients.db
 /database/transactions.db
