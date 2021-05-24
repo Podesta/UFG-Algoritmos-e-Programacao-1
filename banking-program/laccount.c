@@ -61,7 +61,9 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
                 printAccount(dbAcc, idAcc);
                 idRec = 0; // TODO:REMOVE
                 value = withdraw(dbAcc, dbTra, idAcc, idRec, false);
-                printf("saque de %lld\n", value);
+                if (value > 0) {
+                    printNotes(value);
+                }
             } else {
                 printf("\nConta não encontrada.\n");
             }
@@ -140,14 +142,14 @@ void addAccount(FILE *dbAcc, int idClient)
         accountLi.idClient = idClient;
         strcpy(accountLi.bankNum, bankNum);
         strcpy(accountLi.accountNum, accountNum);
-        accountLi.balance = rand() % 1000;
+        accountLi.balance = rand() % 1000000;
 
         printf("\nConta adicionada com sucesso!\n"
                 "Cliente: %d\n"
                 "Agência: %s\n"
                 "Conta:   %s\n"
-                "Saldo:   %lld\n", accountLi.idClient, accountLi.bankNum,
-                accountLi.accountNum, accountLi.balance);
+                "Saldo:   %.2lf\n", accountLi.idClient, accountLi.bankNum,
+                accountLi.accountNum, (double)accountLi.balance / 100);
 
         ++id;
         fseek(idAcc, 0, SEEK_SET);
@@ -257,8 +259,8 @@ void listAccount(FILE *dbAcc, FILE *dbCli, bool printAll, int id)
                     printf("\n"
                             "    Agência: %s\n"
                             "    Conta:   %s\n"
-                            "    Saldo:   %lld\n", accountLi.bankNum,
-                            accountLi.accountNum, accountLi.balance);
+                            "    Saldo:   %.2lf\n", accountLi.bankNum,
+                        accountLi.accountNum, (double)accountLi.balance / 100);
                     ++noAccount;
                 }
             }
@@ -381,8 +383,8 @@ void printAccount(FILE *dbAcc, int idAcc)
             printf("\n"
                    "    Agência: %s\n"
                    "    Conta:   %s\n"
-                   "    Saldo:   %lld\n", accountLi.bankNum,
-                   accountLi.accountNum, accountLi.balance);
+                   "    Saldo:   %.2lf\n", accountLi.bankNum,
+                   accountLi.accountNum, (double)accountLi.balance / 100);
             return;
         }
     }
@@ -525,12 +527,68 @@ long long withdraw(FILE *dbAcc, FILE *dbTra, int idAcc, int idRec, bool trsfr)
         fwrite(&idTra, sizeof(int), 1, indexTra);
         fclose(indexTra);
 
+        printf("\nSaque realizado com sucesso!\n"
+               "Novo saldo: R$ %.2lf.\n", (double)accountLi.balance / 100);
+
         return amount;
     }
     printf("\n\nERRO AO SACAR DINHEIRO!\n\n");
     return 0;
 }
 
+void printNotes(long long value)
+{
+    long long n200;
+    long long n100;
+    long long n50;
+    long long n20;
+    long long n10;
+    long long n5;
+    long long n2;
+
+    value = value / 100;
+
+    n200 = value / 200;
+    value = value % 200;
+
+    n100 = value / 100;
+    value = value % 100;
+
+    n50 = value / 50;
+    value = value % 50;
+
+    n20 = value / 20;
+    value = value % 20;
+
+    n10 = value / 10;
+    value = value % 10;
+
+    n5 = value / 5;
+    value = value % 5;
+
+    n2 = value / 2;
+    value = value % 2;
+
+    if (value != 0)
+        printf("\n\nERRO CONTANDO AS NOTAS!\n\n");
+
+    printf("Notas emitidas:\n");
+
+    if (n200 !=0)
+        printf("%lld notas de 200 reais.\n", n200);
+    if (n100 !=0)
+        printf("%lld notas de 100 reais.\n", n100);
+    if (n50 != 0)
+        printf("%lld notas de 50 reais.\n", n50);
+    if (n20 != 0)
+        printf("%lld notas de 20 reais.\n", n20);
+    if (n10 != 0)
+        printf("%lld notas de 10 reais.\n", n10);
+    if (n5 !=0)
+        printf("%lld notas de 5 reais.\n", n5);
+    if (n2 != 0)
+        printf("%lld notas de 2 reais.\n", n2);
+}
 
 
 
