@@ -68,6 +68,13 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
                 printf("\nConta não encontrada.\n");
             }
             break;
+        case 'e':
+            if (searchAccount(dbAcc, &idAcc, &idCli)) {
+                printClient(dbCli, idCli);
+                printAccount(dbAcc, idAcc);
+                printTransactions(dbTra, idAcc);
+            }
+            break;
         case 's':
             cleanExit(dbCli, dbAcc, 0);
             break;
@@ -589,6 +596,63 @@ void printNotes(long long value)
     if (n2 != 0)
         printf("%lld notas de 2 reais.\n", n2);
 }
+
+void printTransactions(FILE *dbTra, int idAcc)
+{
+    struct Transaction traLi;
+    time_t date;
+    time_t date2;
+    time_t timeSr;  // Time search, time window
+    char dateBR[100];
+    char dateBR2[100];
+    long position;
+
+    time(&date);
+
+    //printf("Data atual: %lld\n", (long long)date);
+    //printf("Data atual: %s\n", asctime(localtime(&date)));
+
+    strftime(dateBR, 100, "%d/%m/%Y às %H:%M", localtime(&date));
+    printf("\nData atual: %s.\n", dateBR);
+
+    printf("Prazo de busca do extrato, em dias: ");
+    while (scanf("%lld", (long long *)&timeSr), timeSr <= 0);
+    while (getchar() != '\n');
+
+    timeSr = timeSr * 24 * 60 * 60;
+    date2 = date - timeSr;
+    strftime(dateBR, 100, "%d/%m/%Y", localtime(&date));
+    strftime(dateBR2, 100, "%d/%m/%Y", localtime(&date2));
+    printf("\nBusca entre %s e %s.\n", dateBR2, dateBR);
+
+    // Iterate over the file backwards, so last order appears on top
+    bool found = false;
+    fseek(dbTra, 0, SEEK_END);
+    position = ftell(dbTra);
+    while (true) {
+        position -= (long)sizeof(struct Transaction);
+        fseek(dbTra, position, SEEK_SET);
+
+        fread(&traLi, sizeof(struct Transaction), 1, dbTra);
+        if ((traLi.idAccount == idAcc) && (date - traLi.date <= timeSr)) {
+            strftime(dateBR, 100, "%d/%m/%Y às %H:%M", localtime(&traLi.date));
+
+            printf("\n    Data:   %s.\n", dateBR);
+            traLi.credit ?
+                printf("    Tipo:   Crédito.\n") :
+                printf("    Tipo:   Débito.\n");
+            printf("    Valor:  %.2lf\n", (double)traLi.amount / 100);
+            printf("    Motivo: %s\n", traLi.description);
+
+            found = true;
+        }
+        if (position == 0)
+            break;
+    }
+    if (!found)
+        printf("\nNenhuma transação encontrada no período.\n");
+}
+
 
 
 

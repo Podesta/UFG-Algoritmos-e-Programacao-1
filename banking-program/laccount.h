@@ -17,6 +17,7 @@ void printClient(FILE *dbCli, int idCli);
 void printAccount(FILE *dbAcc, int idAcc);
 long long withdraw(FILE *dbAcc, FILE *dbTra, int idAcc, int idRec, bool trsfr);
 void printNotes(long long value);
+void printTransactions(FILE *dbTra, int idAcc);
 
 struct Account {
     int id;
