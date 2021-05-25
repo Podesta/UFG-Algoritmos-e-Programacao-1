@@ -90,7 +90,7 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
                     value = withdraw(dbAcc, dbTra, idAcc, idRec, true);
                     deposit(dbAcc, dbTra, idRec, idAcc, value, true);
                 } else {
-                    printf("\nConta para transferência encontrada.\n"
+                    printf("\nConta para transferência não encontrada.\n"
                            "Transferência não realizada.\n");
                 }
             } else {
@@ -182,7 +182,7 @@ void addAccount(FILE *dbAcc, int idClient)
         accountLi.idClient = idClient;
         strcpy(accountLi.bankNum, bankNum);
         strcpy(accountLi.accountNum, accountNum);
-        accountLi.balance = rand() % 1000000;
+        accountLi.balance = 0;
 
         printf("\nConta adicionada com sucesso!\n"
                 "Cliente: %d\n"
@@ -296,10 +296,9 @@ void listAccount(FILE *dbAcc, FILE *dbCli, bool printAll, int id)
             while (fread(&accountLi, sizeof(struct Account), 1, dbAcc)) {
                 if (clienteLi.id == accountLi.idClient) {
                     printf("\n"
-                            "    id:      %d\n"
                             "    Agência: %s\n"
                             "    Conta:   %s\n"
-                            "    Saldo:   %.2lf\n", accountLi.id, accountLi.bankNum,
+                            "    Saldo:   %.2lf\n", accountLi.bankNum,
                         accountLi.accountNum, (double)accountLi.balance / 100);
                     ++noAccount;
                 }
