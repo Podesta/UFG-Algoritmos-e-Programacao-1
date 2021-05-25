@@ -131,7 +131,7 @@ void menuClient(FILE *dbCli, FILE *dbAcc)
             id = searchClient(dbCli);
             position = positionClient(dbCli, id);
             if (id != 0)
-                removeClient(dbCli, position);
+                removeClient(dbCli, dbAcc, position, id);
             break;
         case 'v':
             break;
@@ -366,7 +366,7 @@ void zeroClient(FILE *dbCli, long position)
 // but I need to pass argv[] all the way to this function. And third option,
 // currently implemented, is simply reopening the file with the w+b option, and
 // that will truncate the file, and then write, while keeping the FILE stream.
-void removeClient(FILE *dbCli, long position)
+void removeClient(FILE *dbCli, FILE *dbAcc, long position, int id)
 {
     struct Cliente clienteLi;
     int qtyClient = 0;
@@ -393,5 +393,26 @@ void removeClient(FILE *dbCli, long position)
             continue;
         fwrite(&removeCli[i], sizeof(struct Cliente), 1, dbCli);
     }
+
+    // Also remove accounts of the client
+    struct Account accountLi;
+    int qtyAccount = 0;
+
+    rewind(dbAcc);
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAcc))
+        ++qtyAccount;
+
+    rewind(dbAcc);
+    struct Account removeAcc[qtyAccount];
+    for (long i = 0; i < qtyAccount - 1; ++i) {
+        fread(&removeAcc[i], sizeof(struct Account), 1, dbAcc);
+        if (removeAcc[i].idClient == id)
+            --i;
+    }
+
+    freopen(NULL, "w+b", dbAcc);
+    for (long i = 0; i < qtyAccount - 1; ++i)
+        fwrite(&removeAcc[i], sizeof(struct Account), 1, dbAcc);
+
     printf("Cliente removido com sucesso!\n");
 }

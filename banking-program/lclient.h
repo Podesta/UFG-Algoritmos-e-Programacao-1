@@ -27,6 +27,6 @@ void sortClient(FILE *dbCli);
 int searchClient(FILE *dbCli);
 long positionClient(FILE *dbCli, int id);
 void zeroClient(FILE *dbCli, long position);
-void removeClient(FILE *dbCli, long position);
+void removeClient(FILE *dbCli, FILE *dbAcc, long position, int id);
 
 #endif
