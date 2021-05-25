@@ -8,6 +8,7 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
     int idAcc;
     int idRec;  // If a transfer, the receiving account
     int idCli;
+    int idCliR; // Receiving client
     long long value;
 
     printf("\n============= Gerenciar Contas =============\n"
@@ -59,10 +60,38 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
             if (searchAccount(dbAcc, &idAcc, &idCli)) {
                 printClient(dbCli, idCli);
                 printAccount(dbAcc, idAcc);
-                idRec = 0; // TODO:REMOVE
                 value = withdraw(dbAcc, dbTra, idAcc, idRec, false);
                 if (value > 0) {
                     printNotes(value);
+                }
+            } else {
+                printf("\nConta não encontrada.\n");
+            }
+            break;
+        case 'd':
+            if (searchAccount(dbAcc, &idAcc, &idCli)) {
+                printClient(dbCli, idCli);
+                printAccount(dbAcc, idAcc);
+                deposit(dbAcc, dbTra, idAcc, 0, 0, false);
+            } else {
+                printf("\nConta não encontrada.\n");
+            }
+            break;
+        case 't':
+            if (searchAccount(dbAcc, &idAcc, &idCli)) {
+                printf("\nOrigem da transferência:");
+                printClient(dbCli, idCli);
+                printAccount(dbAcc, idAcc);
+                printf("\n");
+                if (searchAccount(dbAcc, &idRec, &idCliR)) {
+                    printf("\nDestino da transferência:");
+                    printClient(dbCli, idCliR);
+                    printAccount(dbAcc, idRec);
+                    value = withdraw(dbAcc, dbTra, idAcc, idRec, true);
+                    deposit(dbAcc, dbTra, idRec, idAcc, value, true);
+                } else {
+                    printf("\nConta para transferência encontrada.\n"
+                           "Transferência não realizada.\n");
                 }
             } else {
                 printf("\nConta não encontrada.\n");
@@ -73,6 +102,8 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
                 printClient(dbCli, idCli);
                 printAccount(dbAcc, idAcc);
                 printTransactions(dbTra, idAcc);
+            } else {
+                printf("\nConta não encontrada.\n");
             }
             break;
         case 's':
@@ -145,6 +176,8 @@ void addAccount(FILE *dbAcc, int idClient)
 
     if (checkAccount(bankNum, accountNum, dbAcc)) {
 
+        ++id;
+
         accountLi.id = id;
         accountLi.idClient = idClient;
         strcpy(accountLi.bankNum, bankNum);
@@ -158,7 +191,6 @@ void addAccount(FILE *dbAcc, int idClient)
                 "Saldo:   %.2lf\n", accountLi.idClient, accountLi.bankNum,
                 accountLi.accountNum, (double)accountLi.balance / 100);
 
-        ++id;
         fseek(idAcc, 0, SEEK_SET);
         fwrite(&id, sizeof(int), 1, idAcc);
         fclose(idAcc);
@@ -264,9 +296,10 @@ void listAccount(FILE *dbAcc, FILE *dbCli, bool printAll, int id)
             while (fread(&accountLi, sizeof(struct Account), 1, dbAcc)) {
                 if (clienteLi.id == accountLi.idClient) {
                     printf("\n"
+                            "    id:      %d\n"
                             "    Agência: %s\n"
                             "    Conta:   %s\n"
-                            "    Saldo:   %.2lf\n", accountLi.bankNum,
+                            "    Saldo:   %.2lf\n", accountLi.id, accountLi.bankNum,
                         accountLi.accountNum, (double)accountLi.balance / 100);
                     ++noAccount;
                 }
@@ -619,7 +652,13 @@ void printTransactions(FILE *dbTra, int idAcc)
     while (scanf("%lld", (long long *)&timeSr), timeSr <= 0);
     while (getchar() != '\n');
 
+    // If search windows is bigger than 100 years
     timeSr = timeSr * 24 * 60 * 60;
+    if (timeSr > 3155846400) {
+        printf("\nBusca deve ser inferior a 100 anos!\n");
+        return;
+    }
+
     date2 = date - timeSr;
     strftime(dateBR, 100, "%d/%m/%Y", localtime(&date));
     strftime(dateBR2, 100, "%d/%m/%Y", localtime(&date2));
@@ -652,6 +691,136 @@ void printTransactions(FILE *dbTra, int idAcc)
     if (!found)
         printf("\nNenhuma transação encontrada no período.\n");
 }
+
+long long deposit(FILE *dbAcc, FILE *dbTra, int idAcc, int idSnd,
+                                                    long long value, bool trsfr)
+{
+    struct Account accountLi;
+    struct Account sendAcc;  // Sending account, if trasnfer.
+    struct Transaction traLi;
+    long position;
+    double tmp; // Read input as double, before converting to cents
+    long long amount;
+    char description[150];
+    int idTra;  // Transaction id. Auto generated.
+    time_t date;
+
+    // Get position to change balance on account
+    rewind(dbAcc);
+    while (fread(&accountLi, sizeof(struct Account), 1, dbAcc)) {
+        if (accountLi.id == idAcc) {
+            position = (ftell(dbAcc) - (long int)sizeof(struct Account));
+            break;
+        }
+    }
+
+    while (!trsfr) {
+        printf ("Valor a ser depositado: R$ ");
+        scanf("%lf", &tmp);
+        while (getchar() != '\n');
+
+        if (tmp <= 0) {
+            printf("Entrada inválida. Digite um valor positivo em reais.\n");
+            continue;
+        }
+
+        amount = (long long)(tmp * 100);
+        break;
+    }
+
+    // Get Transaciton id.
+    FILE *indexTra;
+    indexTra = fopen("indexTra.db", "r+b");
+    if (indexTra == NULL) {
+        indexTra = fopen("indexTra.db", "w+b");
+        idTra = 0;
+        fwrite(&idTra, sizeof(int), 1, indexTra);
+    }
+
+    if (trsfr) {
+        while (fread(&sendAcc, sizeof(struct Account), 1, dbAcc))
+            if (sendAcc.id == idSnd)
+                break;
+
+        snprintf(description, sizeof(description),
+                "Transferência de R$%.2lf da conta: %s-%s.",
+                (double)value / 100, sendAcc.bankNum, sendAcc.accountNum);
+        time(&date);
+        ++idTra;
+
+        traLi.id = idTra;
+        traLi.idAccount = idAcc;
+        traLi.credit = true;
+        traLi.debit = false;
+        traLi.amount = value;
+        traLi.date = date;
+        strcpy(traLi.description, description);
+
+        accountLi.balance += value;
+
+        fseek(dbTra, 0, SEEK_END);
+        fwrite(&traLi, sizeof(struct Transaction), 1, dbTra);
+
+        fseek(dbAcc, position, SEEK_SET);
+        fwrite(&accountLi, sizeof(struct Account), 1, dbAcc);
+
+        fseek(indexTra, 0, SEEK_SET);
+        fwrite(&idTra, sizeof(int), 1, indexTra);
+        fclose(indexTra);
+
+        return amount;
+    }
+
+    if (!trsfr) {
+        printf("Informe uma descrição para o depósito: ");
+        fgets(description, 150, stdin);
+        size_t length = strlen(description);
+        if (description[length - 1] == '\n')
+            description[length - 1] = 0;
+        else
+            while (getchar() != '\n');
+
+        time(&date);
+        ++idTra;
+
+        traLi.id = idTra;
+        traLi.idAccount = idAcc;
+        traLi.credit = true;
+        traLi.debit = false;
+        traLi.amount = amount;
+        traLi.date = date;
+        strcpy(traLi.description, description);
+
+        accountLi.balance += amount;
+
+        fseek(dbTra, 0, SEEK_END);
+        fwrite(&traLi, sizeof(struct Transaction), 1, dbTra);
+
+        fseek(dbAcc, position, SEEK_SET);
+        fwrite(&accountLi, sizeof(struct Account), 1, dbAcc);
+
+        fseek(indexTra, 0, SEEK_SET);
+        fwrite(&idTra, sizeof(int), 1, indexTra);
+        fclose(indexTra);
+
+        printf("\nDepósito realizado com sucesso!\n"
+               "Novo saldo: R$ %.2lf.\n", (double)accountLi.balance / 100);
+
+        return amount;
+    }
+    printf("\n\nERRO AO DEPOSITAR DINHEIRO!\n\n");
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
 
 
 

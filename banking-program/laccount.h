@@ -18,6 +18,7 @@ void printAccount(FILE *dbAcc, int idAcc);
 long long withdraw(FILE *dbAcc, FILE *dbTra, int idAcc, int idRec, bool trsfr);
 void printNotes(long long value);
 void printTransactions(FILE *dbTra, int idAcc);
+long long deposit(FILE *dbAcc, FILE *dbTra, int idAcc, int idSnd, long long value, bool trsfr);
 
 struct Account {
     int id;
