@@ -10,10 +10,11 @@ int stringComp(const void *s1, const void *s2)
 
 // Close database before exit. Exit already performs close,
 // but step is required by instructors.
-int cleanExit(FILE *dbCli, FILE *dbAcc, int a)
+int cleanExit(FILE *dbCli, FILE *dbAcc, FILE *dbTra, int a)
 {
     fclose(dbCli);
     fclose(dbAcc);
+    fclose(dbTra);
     exit(a);
 }
 
@@ -65,20 +66,20 @@ int menuMain(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
 
         switch (input) {
             case 'c':
-                menuClient(dbCli, dbAcc);
+                menuClient(dbCli, dbAcc, dbTra);
                 break;
             case 't':
                 menuConta(dbCli, dbAcc, dbTra);
                 break;
             case 's':
-                cleanExit(dbCli, dbAcc, 0);
+                cleanExit(dbCli, dbAcc, dbTra, 0);
                 break;
         }
 
     }
 }
 
-void menuClient(FILE *dbCli, FILE *dbAcc)
+void menuClient(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
 {
     int input;
     int id = 0;
@@ -136,7 +137,7 @@ void menuClient(FILE *dbCli, FILE *dbAcc)
         case 'v':
             break;
         case 's':
-            cleanExit(dbCli, dbAcc, 0);
+            cleanExit(dbCli, dbAcc, dbTra, 0);
             break;
         default:
             break;
@@ -170,7 +171,6 @@ void addClient(FILE *dbCli, long position)
     else
         while (getchar() != '\n');
 
-    // TODO: Add check to validate input as number
     printf("Informe o CPF ou CNPJ do cliente: ");
     fgets(cpf, 15, stdin);
     length = strlen(cpf) - 1;
@@ -179,7 +179,6 @@ void addClient(FILE *dbCli, long position)
     else
         while (getchar() != '\n');
     
-    // TODO: Add check to validate input as number
     printf("Informe o telefone do cliente: ");
     fgets(phone, 15, stdin);
     length = strlen(phone) - 1;

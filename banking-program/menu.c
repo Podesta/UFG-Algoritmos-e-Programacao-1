@@ -1,12 +1,8 @@
-#include "lclient.h"
 #include "laccount.h"
+#include "lclient.h"
 
 int main(int argc, char *argv[])
 {
-
-    struct Cliente clienteLi[10];
-    memset(clienteLi, 0, sizeof(clienteLi));
-
     // User must provide one and only one database at runtime
     if (argc < 4 || argc > 4) {
         printf("Por favor, informe os bancos de dados ao iniciar o programa na "
@@ -32,12 +28,13 @@ int main(int argc, char *argv[])
         dbTra = fopen (argv[3], "w+b");
     }
 
-    int test = menuMain(dbCli, dbAcc, dbTra);
-    printf("%c\n", test);
+    menuMain(dbCli, dbAcc, dbTra);
+
+    printf("\n\nERRO AO EXECUTAR PROGRAMA!\n\n");
 
     fclose(dbCli);
     fclose(dbAcc);
+    fclose(dbTra);
 
     return 0;
 }
-

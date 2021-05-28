@@ -107,7 +107,7 @@ void menuConta(FILE *dbCli, FILE *dbAcc, FILE *dbTra)
             }
             break;
         case 's':
-            cleanExit(dbCli, dbAcc, 0);
+            cleanExit(dbCli, dbAcc, dbTra, 0);
             break;
         default:
             break;
@@ -613,9 +613,9 @@ void printNotes(long long value)
 
     printf("Notas emitidas:\n");
 
-    if (n200 !=0)
+    if (n200 != 0)
         printf("%lld notas de 200 reais.\n", n200);
-    if (n100 !=0)
+    if (n100 != 0)
         printf("%lld notas de 100 reais.\n", n100);
     if (n50 != 0)
         printf("%lld notas de 50 reais.\n", n50);
@@ -623,7 +623,7 @@ void printNotes(long long value)
         printf("%lld notas de 20 reais.\n", n20);
     if (n10 != 0)
         printf("%lld notas de 10 reais.\n", n10);
-    if (n5 !=0)
+    if (n5 != 0)
         printf("%lld notas de 5 reais.\n", n5);
     if (n2 != 0)
         printf("%lld notas de 2 reais.\n", n2);
@@ -810,19 +810,3 @@ long long deposit(FILE *dbAcc, FILE *dbTra, int idAcc, int idSnd,
     printf("\n\nERRO AO DEPOSITAR DINHEIRO!\n\n");
     return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
